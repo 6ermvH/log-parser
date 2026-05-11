@@ -32,6 +32,9 @@ flowchart LR
     parserSvc -- "SaveLog в tx" --> repo
     repo --> db
 
-    classDef ext fill:#dde,stroke:#88a,stroke-width:1px
+    classDef ext fill:#fff3bf,stroke:#b08900,stroke-width:1.5px,stroke-dasharray:5 4,color:#5a4500,font-style:italic
+    classDef boundary fill:#f8faff,stroke:#3b5bdb,stroke-width:1.5px
+    classDef internal fill:#e7f5ff,stroke:#1971c2
     class admin,db,fs ext
+    class router,handlers,parserSvc,aggFacade,sm,repo internal
 ```
