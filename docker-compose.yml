@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-logparser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logparser}
+      POSTGRES_DB: ${POSTGRES_DB:-logparser}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-logparser} -d ${POSTGRES_DB:-logparser}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-logparser}:${POSTGRES_PASSWORD:-logparser}@db:5432/${POSTGRES_DB:-logparser}?sslmode=disable
+      PORT: ${PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
