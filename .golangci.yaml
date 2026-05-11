@@ -1,0 +1,90 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - noctx
+    - sqlclosecheck
+    - rowserrcheck
+    - errorlint
+    - nilerr
+    - revive
+    - gocritic
+    - misspell
+    - unconvert
+    - nolintlint
+    - wsl_v5
+    - gosec
+    - gocyclo
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    govet:
+      enable-all: true
+    gocyclo:
+      min-complexity: 15
+    revive:
+      rules:
+        - name: var-naming
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: if-return
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: errorf
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+    misspell:
+      locale: US
+    gosec:
+      excludes:
+        - G104
+
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - gocyclo
+          - bodyclose
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - log-parser
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  formats:
+    text:
+      colors: true
+      print-issued-lines: true
+      print-linter-name: true
