@@ -1,34 +1,37 @@
 # Log Parser — Components (C3)
 
 ```mermaid
-C4Component
-    title Log Parser — Components (C3)
+flowchart LR
+    admin(["HPC Administrator"])
+    db[("PostgreSQL<br/>logs, nodes, ports, nodes_info")]
+    fs[/"Logs Volume<br/>/app/data"/]
 
-    Person(admin, "HPC Administrator", "Загружает логи и читает топологию")
-    SystemDb_Ext(db, "PostgreSQL", "logs, nodes, ports, nodes_info, connections")
-    System_Ext(fs, "Logs Volume", "/app/data — входные log.zip")
+    subgraph api["API Service (Go)"]
+        direction TB
+        router["HTTP Router<br/><i>net/http</i><br/>маршруты /api/v1/*, middleware"]
+        handlers["Handlers<br/>разбор запроса, JSON-ответ"]
+        parserSvc["Parser Service<br/>открыть zip, оркестрация"]
 
-    Container_Boundary(api, "API Service (Go)") {
-        Component(router, "HTTP Router", "net/http", "Маршрутизация /api/v1/*, middleware (recover, request log)")
-        Component(handlers, "Handlers", "net/http handlers", "Разбор запроса, валидация, JSON-ответ")
-        Component(parserSvc, "Parser Service", "Go package", "Открыть zip, скормить файлы агрегатору, передать результат в Repository")
+        subgraph agg["Topology Aggregator"]
+            direction TB
+            aggFacade["Aggregator (facade)<br/>AnalyzeFile, Result → domain.Log"]
+            sm["Section State Machine<br/><i>internal</i><br/>START_X / Header / Body / END_X"]
+        end
 
-        Component_Boundary(aggBoundary, "Topology Aggregator") {
-            Component(aggFacade, "Aggregator (facade)", "Go", "AnalyzeFile(name, reader); Result() → domain.Log; накапливает между файлами")
-            Component(sm, "Section State Machine", "Go (internal)", "START_X / Header / Body / END_X; вызывает aggregator.onEvent через callback")
-        }
+        repo["Repository<br/><i>database/sql + lib/pq</i><br/>CRUD + tx, embed-миграции"]
+    end
 
-        Component(repo, "Repository", "database/sql + lib/pq", "CRUD + транзакционная запись. Схема — embed-миграции на старте")
-    }
+    admin -- "HTTP :8080" --> router
+    router --> handlers
+    handlers -- "POST /parse" --> parserSvc
+    handlers -- "GET /topology, /node, /port, /log" --> repo
+    parserSvc -- "file I/O" --> fs
+    parserSvc -- "AnalyzeFile(name, reader)" --> aggFacade
+    aggFacade -- "создаёт на каждый файл" --> sm
+    sm -- "emit(section, columns, row)" --> aggFacade
+    parserSvc -- "SaveLog в tx" --> repo
+    repo --> db
 
-    Rel(admin, router, "HTTP", "JSON :8080")
-    Rel(router, handlers, "dispatch")
-    Rel(handlers, parserSvc, "POST /parse")
-    Rel(handlers, repo, "GET /topology, /node, /port, /log")
-    Rel(parserSvc, fs, "Открывает log.zip", "file I/O")
-    Rel(parserSvc, aggFacade, "AnalyzeFile(name, reader)")
-    Rel(aggFacade, sm, "создаёт на каждый файл")
-    Rel(sm, aggFacade, "emit(section, columns, row)", "callback")
-    Rel(parserSvc, repo, "SaveLog(domain.Log)", "в одной tx")
-    Rel(repo, db, "SQL")
+    classDef ext fill:#dde,stroke:#88a,stroke-width:1px
+    class admin,db,fs ext
 ```
