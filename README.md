@@ -76,14 +76,13 @@ ENV, (DSN, секреты). YAML — для тюнинга в коде.
 
 ## База данных
 
-Шесть таблиц с FK и `ON DELETE CASCADE` от корневой `logs`:
+Пять таблиц с FK и `ON DELETE CASCADE` от корневой `logs`:
 
 - `logs` — снапшот загрузки
 - `failed_logs` — детали ошибок парсинга (1:1 с `logs`)
 - `nodes` — узлы фабрики (host / switch / router / unknown)
 - `ports` — порты узлов
 - `nodes_info` — расширенные блоки (`switch_info`, `system_info`, `sharp_info`) как JSONB
-- `connections` — рёбра графа (`port_a_id`, `port_b_id`) с нормализацией направления и `UNIQUE`
 
 Полная диаграмма связей с кардинальностями — [docs/erd.md](docs/erd.md).
 
@@ -94,7 +93,7 @@ ENV, (DSN, секреты). YAML — для тюнинга в коде.
 Парсер собран из двух независимых слоёв, чтобы изменять формат отдельно от доменной логики:
 
 - **State machine** (`internal/parser/statemachine.go`) — стрим построчно, состояния `Outside / Header / Body`. Знает только про секционный CSV-формат `START_X / header / data / END_X`, эмитит события `(section, columns, row)` через callback. Не знает про InfiniBand.
-- **Aggregator** (`internal/parser/aggregator.go`) — принимает события, маппит CSV-строки в доменную модель `Log → Node → Port` + `NodeInfo` + `Connection`. Не знает про zip и стрим.
+- **Aggregator** (`internal/parser/aggregator.go`) — принимает события, маппит CSV-строки в доменную модель `Log → Node → Port` + `NodeInfo`. Не знает про zip и стрим.
 
 Парсер строгий: отказывает в файле целиком при любом из двух нарушений (см. раздел про допущения).
 
@@ -113,28 +112,14 @@ golangci-lint run ./...                          # линт
 
 Build-tag разделение: unit `//go:build !integration`, integration `//go:build integration`, e2e `//go:build e2e`. В CI три отдельных job-а.
 
-## Граф топологии (LINKS)
+## Про физическую топологию (LINKS)
 
-В нашей модели:
-- **Узлы графа** — записи в `nodes`.
-- **Рёбра графа** — записи в `connections (port_a_id, port_b_id)`, обе ссылки на `ports`. Каждый кабель = ровно одна строка, направление нормализовано (`port_a_id < port_b_id`).
+Физических связей port↔port в `ibdiagnet2.db_csv` **нет** — секция с разбором кабельной топологии в этом файле не выводится. По официальной документации NVIDIA информация о соединениях лежит в **других артефактах** `ibdiagnet2`: `ibdiagnet2.net_dump`, `ibdiagnet2.lst`, `ibdiagnet2.ibnetdiscover`. Их формат — не CSV, а табличный текст в духе `ibnetdiscover`, со своим набором правил парсинга.
 
-В приложенном к заданию `testdata/log.zip` есть четыре секции (`NODES`, `PORTS`, `SWITCHES`, `SYSTEM_GENERAL_INFORMATION`), но **нет секции с физическими связями** между портами. Поэтому `GET /api/v1/topology` для него возвращает `edges: []`.
+Поэтому в текущей реализации `GET /api/v1/topology` возвращает только `nodes` и `ports` — узлы фабрики и их порты с метаданными (`state`, `phy_state`, `link_speed_actv`, `link_width_actv`, `lid`, `port_guid`). Этого достаточно, чтобы построить «список железа», но не достаточно, чтобы нарисовать кабельный граф.
 
-> **Не верифицировано:** реальный формат секции с информацией о соединениях в выводе `ibdiagnet2` я не сверял с документацией NVIDIA . По здравому смыслу такие данные могут лежать либо отдельной секцией в `db_csv`
+Чтобы добавить рёбра, нужно: подключить к парсеру один из `net_dump`/`lst`/`ibnetdiscover`, написать под него отдельный парсер (state machine из `internal/parser` сюда не подходит — формат другой), завести таблицу `connections (port_a_id, port_b_id)` и вернуть рёбра в ответ `/topology`. В рамках текущего задания это намеренно не делалось — на вход поступает только `db_csv`.
 
-Под **предположение**, что в `db_csv` найдётся секция `LINKS` со столбцами «два конца кабеля», парсер уже расширен:
-
-```
-START_LINKS
-NodeGuid1,PortNum1,NodeGuid2,PortNum2,LinkSpeed,LinkWidth
-0xhost1,1,0xswitch1,1,EDR,4x
-0xswitch1,33,0xswitch2,33,EDR,4x
-...
-END_LINKS
-```
-
-`testdata/log_with_links.zip` — синтетика по этой же гипотезе, используется в e2e-тесте. **На реальных данных** имя секции или её формат, скорее всего, будут другими — придётся свериться с настоящим выводом `ibdiagnet2` и поправить `internal/parser/aggregator.go` (ветка `case sectionLinks`) под фактический формат. Сама схема `connections` от этого не меняется — это просто другой источник тех же данных.
 ## Допущения и ограничения
 
 - **Аутентификации нет.** Это тестовое задание, выставлять API наружу не предполагается. В реальном сервисе сюда добавили бы middleware с JWT / API-ключом.
@@ -173,6 +158,6 @@ migrations/                  # SQL миграции (embed)
 test_migrations/             # сиды для integration-тестов
 configs/                     # YAML конфиг (reaper)
 tests/e2e/                   # e2e-тесты
-testdata/                    # фикстуры (log.zip, log_with_links.zip, битые логи)
+testdata/                    # фикстуры (log.zip, битые логи)
 docs/                        # диаграммы + OpenAPI + Postman collection
 ```
