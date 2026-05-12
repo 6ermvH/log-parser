@@ -23,7 +23,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	httpapi "github.com/6ermvH/log-parser/internal/api/http"
+	httpapi "github.com/6ermvH/log-parser/internal/api/v1/http"
 	"github.com/6ermvH/log-parser/internal/parser"
 	"github.com/6ermvH/log-parser/internal/service"
 	"github.com/6ermvH/log-parser/internal/storage/migrate"
