@@ -31,9 +31,6 @@ func TestTopologyHandler_OK(t *testing.T) {
 		Ports: []service.Port{
 			{ID: 10, NodeID: 1, Num: 1, State: 4},
 		},
-		Edges: []service.Edge{
-			{PortAID: 10, PortBID: 11},
-		},
 	}, nil)
 
 	h := topologyHandler(q, discardLogger())
@@ -51,7 +48,6 @@ func TestTopologyHandler_OK(t *testing.T) {
 	decodeJSON(t, w.Body, &resp)
 	require.Len(t, resp.Nodes, 1)
 	require.Len(t, resp.Ports, 1)
-	require.Len(t, resp.Edges, 1)
 	assert.Equal(t, "0xa", resp.Nodes[0].GUID)
 }
 
