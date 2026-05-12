@@ -45,13 +45,14 @@ func (s *ParseService) Submit(ctx context.Context, path string) (uuid.UUID, erro
 		return uuid.Nil, fmt.Errorf("insert processing: %w", iErr)
 	}
 
+	bgCtx := context.WithoutCancel(ctx)
+
 	s.wg.Add(1)
 
-	//nolint:gosec // request context dies with the HTTP response; background processing must outlive it
 	go func() {
 		defer s.wg.Done()
 
-		s.process(context.Background(), id, path)
+		s.process(bgCtx, id, path)
 	}()
 
 	return id, nil
