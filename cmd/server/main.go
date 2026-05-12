@@ -4,19 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/6ermvH/log-parser/internal/config"
 	"github.com/6ermvH/log-parser/internal/logger"
+	"github.com/6ermvH/log-parser/internal/storage/migrate"
+	"github.com/6ermvH/log-parser/internal/storage/postgres"
+	"github.com/6ermvH/log-parser/migrations"
 )
 
 const (
 	readHeaderTimeout = 5 * time.Second
 	shutdownTimeout   = 10 * time.Second
+	healthPingTimeout = 2 * time.Second
 )
 
 func main() {
@@ -35,14 +42,24 @@ func run() error {
 	log := logger.New(cfg.LogLevel)
 	log.Info("starting", "port", cfg.Port, "data_dir", cfg.DataDir)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	if mErr := migrate.Run(migrations.FS, cfg.DatabaseURL); mErr != nil {
+		return fmt.Errorf("migrations: %w", mErr)
+	}
 
-		if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
-			log.Error("write health response", "err", err)
-		}
-	})
+	log.Info("migrations applied")
+
+	ctx := context.Background()
+
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("postgres: %w", err)
+	}
+	defer pool.Close()
+
+	log.Info("db connected")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", healthHandler(pool, log))
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -70,14 +87,38 @@ func run() error {
 		return fmt.Errorf("server: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 
 	log.Info("stopped")
 
 	return nil
+}
+
+func healthHandler(pool *pgxpool.Pool, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), healthPingTimeout)
+		defer cancel()
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := pool.Ping(ctx); err != nil {
+			log.Warn("health db ping failed", "err", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+
+			if _, werr := w.Write([]byte(`{"status":"unhealthy"}`)); werr != nil {
+				log.Error("write health response", "err", werr)
+			}
+
+			return
+		}
+
+		if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+			log.Error("write health response", "err", err)
+		}
+	}
 }
