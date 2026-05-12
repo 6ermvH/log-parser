@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -42,25 +43,66 @@ func (s *ParseService) Run(ctx context.Context, path string) (ParseResult, error
 	}
 
 	if iErr := s.repo.InsertProcessingLog(ctx, id); iErr != nil {
+		s.log.Error("insert processing log failed", "log_id", id, "err", iErr)
+
 		return ParseResult{}, fmt.Errorf("insert processing: %w", iErr)
 	}
 
+	parseStart := time.Now()
 	dlog, parseErr := s.parser.Parse(path)
+	parseDuration := time.Since(parseStart)
+
 	if parseErr != nil {
+		s.log.Warn("parse failed",
+			"log_id", id,
+			"path", path,
+			"parse_duration_ms", parseDuration.Milliseconds(),
+			"err", parseErr,
+		)
+
 		if mErr := s.repo.MarkLogFailed(ctx, id, parseErr.Error()); mErr != nil {
-			s.log.Error("mark log failed", "err", mErr, "log_id", id)
+			s.log.Error("mark log failed", "log_id", id, "err", mErr)
 		}
 
 		return ParseResult{LogID: id, ParseErr: parseErr}, nil
 	}
 
-	if sErr := s.repo.SaveDomainLog(ctx, id, dlog); sErr != nil {
+	saveStart := time.Now()
+	sErr := s.repo.SaveDomainLog(ctx, id, dlog)
+	saveDuration := time.Since(saveStart)
+
+	if sErr != nil {
+		s.log.Error("save log failed",
+			"log_id", id,
+			"save_duration_ms", saveDuration.Milliseconds(),
+			"err", sErr,
+		)
+
 		if mErr := s.repo.MarkLogFailed(ctx, id, "save failed: "+sErr.Error()); mErr != nil {
-			s.log.Error("mark log failed after save error", "err", mErr, "log_id", id)
+			s.log.Error("mark log failed after save error", "log_id", id, "err", mErr)
 		}
 
 		return ParseResult{}, fmt.Errorf("save: %w", sErr)
 	}
 
+	s.log.Info("log parsed",
+		"log_id", id,
+		"path", path,
+		"parse_duration_ms", parseDuration.Milliseconds(),
+		"save_duration_ms", saveDuration.Milliseconds(),
+		"nodes_count", len(dlog.Nodes),
+		"ports_count", countPorts(dlog.Nodes),
+		"connections_count", len(dlog.Connections),
+	)
+
 	return ParseResult{LogID: id}, nil
+}
+
+func countPorts(nodes []domain.Node) int {
+	total := 0
+	for _, n := range nodes {
+		total += len(n.Ports)
+	}
+
+	return total
 }

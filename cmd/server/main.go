@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,8 +29,10 @@ const (
 )
 
 func main() {
+	bootstrapLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		bootstrapLog.Error("startup failed", "err", err)
 		os.Exit(1)
 	}
 }
