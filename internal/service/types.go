@@ -18,7 +18,6 @@ type LogMeta struct {
 type Topology struct {
 	Nodes []TopologyNode
 	Ports []Port
-	Edges []Edge
 }
 
 type TopologyNode struct {
@@ -27,11 +26,6 @@ type TopologyNode struct {
 	GUID  string
 	Type  string
 	Desc  string
-}
-
-type Edge struct {
-	PortAID int64
-	PortBID int64
 }
 
 type Port struct {

@@ -117,28 +117,6 @@ func TestAggregator_SharpInfo(t *testing.T) {
 	assert.Equal(t, "1", nodes[0].Info.SharpInfo["enable_endianness_per_job"])
 }
 
-func TestAggregator_Links(t *testing.T) {
-	t.Parallel()
-
-	input := strings.Join([]string{
-		"START_LINKS",
-		"NodeGuid1,PortNum1,NodeGuid2,PortNum2",
-		"0xswitch1,33,0xswitch2,33",
-		"END_LINKS",
-	}, "\n")
-
-	agg := NewAggregator()
-	require.NoError(t, agg.AnalyzeFile("fabric.db_csv", strings.NewReader(input)))
-
-	conns := agg.Result().Connections
-	require.Len(t, conns, 1)
-
-	assert.Equal(t, "0xswitch1", conns[0].NodeAGUID)
-	assert.Equal(t, 33, conns[0].PortANum)
-	assert.Equal(t, "0xswitch2", conns[0].NodeBGUID)
-	assert.Equal(t, 33, conns[0].PortBNum)
-}
-
 func TestAggregator_UnknownNodeTypeMapsToUnknown(t *testing.T) {
 	t.Parallel()
 

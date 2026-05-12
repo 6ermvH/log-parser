@@ -75,9 +75,6 @@ func TestQueryService_GetTopology_OK(t *testing.T) {
 	repo.EXPECT().ListPortsByLog(gomock.Any(), logID).Return([]pg.PortRow{
 		{ID: 10, NodeID: 1, Num: 1, State: 4},
 	}, nil)
-	repo.EXPECT().ListConnections(gomock.Any(), logID).Return([]pg.ConnectionRow{
-		{ID: 1, PortAID: 10, PortBID: 11},
-	}, nil)
 
 	svc := service.NewQueryService(repo)
 
@@ -85,10 +82,8 @@ func TestQueryService_GetTopology_OK(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, topo.Nodes, 1)
 	require.Len(t, topo.Ports, 1)
-	require.Len(t, topo.Edges, 1)
 
 	assert.Equal(t, "0xa", topo.Nodes[0].GUID)
-	assert.Equal(t, int64(10), topo.Edges[0].PortAID)
 }
 
 func TestQueryService_GetTopology_NotFound(t *testing.T) {

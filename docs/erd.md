@@ -4,11 +4,8 @@
 erDiagram
     logs ||--o| failed_logs : "may fail"
     logs ||--o{ nodes : "contains"
-    logs ||--o{ connections : "scopes"
     nodes ||--o{ ports : "has"
     nodes ||--o| nodes_info : "extended info"
-    ports ||--o{ connections : "endpoint A"
-    ports ||--o{ connections : "endpoint B"
 
     logs {
         uuid id PK
@@ -49,12 +46,5 @@ erDiagram
         jsonb switch_info
         jsonb system_info
         jsonb sharp_info
-    }
-
-    connections {
-        bigserial id PK
-        uuid log_id FK
-        bigint port_a_id FK
-        bigint port_b_id FK
     }
 ```

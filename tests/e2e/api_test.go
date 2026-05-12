@@ -149,10 +149,6 @@ type topologyResp struct {
 		Type string `json:"type"`
 	} `json:"nodes"`
 	Ports []any `json:"ports"`
-	Edges []struct {
-		PortAID int64 `json:"port_a_id"`
-		PortBID int64 `json:"port_b_id"`
-	} `json:"edges"`
 }
 
 type nodeResp struct {
@@ -233,7 +229,7 @@ func getJSON(t *testing.T, path string, dst any) int {
 	return resp.StatusCode
 }
 
-func TestE2E_LogWithoutLinks(t *testing.T) {
+func TestE2E_ParseSampleLog(t *testing.T) {
 	parsed := postParse(t, "log.zip")
 	require.NotEmpty(t, parsed.LogID)
 
@@ -248,7 +244,6 @@ func TestE2E_LogWithoutLinks(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Len(t, topo.Nodes, 5)
 	assert.NotEmpty(t, topo.Ports)
-	assert.Empty(t, topo.Edges, "fixture has no LINKS section")
 
 	var switchID int64
 
@@ -274,25 +269,6 @@ func TestE2E_LogWithoutLinks(t *testing.T) {
 	status = getJSON(t, fmt.Sprintf("/api/v1/port/%d", switchID), &ports)
 	require.Equal(t, http.StatusOK, status)
 	assert.NotEmpty(t, ports.Ports)
-}
-
-func TestE2E_LogWithLinks(t *testing.T) {
-	parsed := postParse(t, "log_with_links.zip")
-	require.NotEmpty(t, parsed.LogID)
-
-	meta := waitLog(t, parsed.LogID)
-	require.Equal(t, statusOK, meta.Status)
-
-	var topo topologyResp
-
-	status := getJSON(t, "/api/v1/topology/"+parsed.LogID, &topo)
-	require.Equal(t, http.StatusOK, status)
-	assert.Len(t, topo.Nodes, 5)
-	require.Len(t, topo.Edges, 5, "fixture has 5 LINKS")
-
-	for _, e := range topo.Edges {
-		assert.Less(t, e.PortAID, e.PortBID, "edge must be normalized")
-	}
 }
 
 func TestE2E_NotFound(t *testing.T) {

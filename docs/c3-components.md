@@ -3,7 +3,7 @@
 ```mermaid
 flowchart LR
     admin(["HPC Administrator"])
-    db[("PostgreSQL<br/>logs, failed_logs, nodes, ports, nodes_info, connections")]
+    db[("PostgreSQL<br/>logs, failed_logs, nodes, ports, nodes_info")]
     fs[/"Logs Volume<br/>/app/data"/]
 
     subgraph api["API Service (Go)"]

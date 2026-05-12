@@ -23,21 +23,15 @@ type topologyNode struct {
 	Desc  string `json:"desc,omitempty"`
 }
 
-type topologyEdge struct {
-	PortAID int64 `json:"port_a_id"`
-	PortBID int64 `json:"port_b_id"`
-}
-
 type topologyResponse struct {
 	Nodes []topologyNode `json:"nodes"`
 	Ports []portResponse `json:"ports"`
-	Edges []topologyEdge `json:"edges"`
 }
 
 // topologyHandler returns the full topology of a log.
 //
 //	@Summary		Get topology
-//	@Description	Returns nodes, ports and connections (edges) for the given log.
+//	@Description	Returns nodes and ports for the given log.
 //	@Tags			topology
 //	@Produce		json
 //	@Param			log_id	path		string	true	"Log UUID"
@@ -90,10 +84,5 @@ func buildTopologyResponse(t service.Topology) topologyResponse {
 		respPorts = append(respPorts, toPortResponse(p))
 	}
 
-	respEdges := make([]topologyEdge, 0, len(t.Edges))
-	for _, e := range t.Edges {
-		respEdges = append(respEdges, topologyEdge{PortAID: e.PortAID, PortBID: e.PortBID})
-	}
-
-	return topologyResponse{Nodes: respNodes, Ports: respPorts, Edges: respEdges}
+	return topologyResponse{Nodes: respNodes, Ports: respPorts}
 }

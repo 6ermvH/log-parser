@@ -39,12 +39,6 @@ type NodeInfoRow struct {
 	SharpInfo  map[string]string
 }
 
-type ConnectionRow struct {
-	ID      int64
-	PortAID int64
-	PortBID int64
-}
-
 func (r *Repository) ListNodes(ctx context.Context, logID uuid.UUID) ([]NodeRow, error) {
 	const q = `
 		SELECT id, log_id, node_guid, node_type, node_desc, system_image_guid, port_guid
@@ -100,38 +94,6 @@ func (r *Repository) ListPortsByNode(ctx context.Context, nodeID int64) ([]PortR
 	`
 
 	return scanPorts(ctx, r, q, nodeID)
-}
-
-func (r *Repository) ListConnections(ctx context.Context, logID uuid.UUID) ([]ConnectionRow, error) {
-	const q = `
-		SELECT id, port_a_id, port_b_id
-		FROM connections
-		WHERE log_id = $1
-		ORDER BY id
-	`
-
-	rows, err := r.pool.Query(ctx, q, logID)
-	if err != nil {
-		return nil, fmt.Errorf("list connections: %w", err)
-	}
-	defer rows.Close()
-
-	var out []ConnectionRow
-
-	for rows.Next() {
-		var c ConnectionRow
-		if err := rows.Scan(&c.ID, &c.PortAID, &c.PortBID); err != nil {
-			return nil, fmt.Errorf("scan connection: %w", err)
-		}
-
-		out = append(out, c)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate connections: %w", err)
-	}
-
-	return out, nil
 }
 
 func (r *Repository) GetNode(ctx context.Context, id int64) (NodeRow, error) {

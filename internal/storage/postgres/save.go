@@ -10,11 +10,6 @@ import (
 	"github.com/6ermvH/log-parser/internal/domain"
 )
 
-type portKey struct {
-	nodeID  int64
-	portNum int
-}
-
 const statusOK = "ok"
 
 func (r *Repository) SaveDomainLog(ctx context.Context, logID uuid.UUID, dlog domain.Log) (err error) {
@@ -38,16 +33,11 @@ func (r *Repository) SaveDomainLog(ctx context.Context, logID uuid.UUID, dlog do
 		return err
 	}
 
-	portIDByKey, err := insertPorts(ctx, tx, nodeIDByGUID, dlog.Nodes)
-	if err != nil {
+	if err = insertPorts(ctx, tx, nodeIDByGUID, dlog.Nodes); err != nil {
 		return err
 	}
 
 	if err = insertNodesInfo(ctx, tx, nodeIDByGUID, dlog.Nodes); err != nil {
-		return err
-	}
-
-	if err = insertConnections(ctx, tx, logID, nodeIDByGUID, portIDByKey, dlog.Connections); err != nil {
 		return err
 	}
 
@@ -80,13 +70,11 @@ func insertNodes(ctx context.Context, tx pgxTx, logID uuid.UUID, nodes []domain.
 	return result, nil
 }
 
-func insertPorts(ctx context.Context, tx pgxTx, nodeIDByGUID map[string]int64, nodes []domain.Node) (map[portKey]int64, error) {
-	result := make(map[portKey]int64)
-
+func insertPorts(ctx context.Context, tx pgxTx, nodeIDByGUID map[string]int64, nodes []domain.Node) error {
 	const q = `
 		INSERT INTO ports (node_id, port_num, port_guid, port_state, port_phy_state,
 		                   link_speed_actv, link_width_actv, lid, raw)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
 	for _, n := range nodes {
@@ -95,22 +83,19 @@ func insertPorts(ctx context.Context, tx pgxTx, nodeIDByGUID map[string]int64, n
 		for _, p := range n.Ports {
 			rawJSON, err := json.Marshal(p.Raw)
 			if err != nil {
-				return nil, fmt.Errorf("marshal port raw: %w", err)
+				return fmt.Errorf("marshal port raw: %w", err)
 			}
 
-			var portID int64
-			if err := tx.QueryRow(ctx, q,
+			if _, err := tx.Exec(ctx, q,
 				nodeID, p.Num, p.GUID, p.State, p.PhyState,
 				p.LinkSpeedActv, p.LinkWidthActv, p.LID, rawJSON,
-			).Scan(&portID); err != nil {
-				return nil, fmt.Errorf("insert port %s:%d: %w", n.GUID, p.Num, err)
+			); err != nil {
+				return fmt.Errorf("insert port %s:%d: %w", n.GUID, p.Num, err)
 			}
-
-			result[portKey{nodeID, p.Num}] = portID
 		}
 	}
 
-	return result, nil
+	return nil
 }
 
 func insertNodesInfo(ctx context.Context, tx pgxTx, nodeIDByGUID map[string]int64, nodes []domain.Node) error {
@@ -143,47 +128,6 @@ func insertNodesInfo(ctx context.Context, tx pgxTx, nodeIDByGUID map[string]int6
 
 		if _, err := tx.Exec(ctx, q, nodeID, sw, sys, sharp); err != nil {
 			return fmt.Errorf("insert nodes_info %s: %w", n.GUID, err)
-		}
-	}
-
-	return nil
-}
-
-func insertConnections(
-	ctx context.Context,
-	tx pgxTx,
-	logID uuid.UUID,
-	nodeIDByGUID map[string]int64,
-	portIDByKey map[portKey]int64,
-	conns []domain.Connection,
-) error {
-	const q = `
-		INSERT INTO connections (log_id, port_a_id, port_b_id)
-		VALUES ($1, $2, $3)
-		ON CONFLICT DO NOTHING
-	`
-
-	for _, c := range conns {
-		nodeAID, okA := nodeIDByGUID[c.NodeAGUID]
-		nodeBID, okB := nodeIDByGUID[c.NodeBGUID]
-
-		if !okA || !okB {
-			continue
-		}
-
-		portAID, okPA := portIDByKey[portKey{nodeAID, c.PortANum}]
-		portBID, okPB := portIDByKey[portKey{nodeBID, c.PortBNum}]
-
-		if !okPA || !okPB || portAID == portBID {
-			continue
-		}
-
-		if portAID > portBID {
-			portAID, portBID = portBID, portAID
-		}
-
-		if _, err := tx.Exec(ctx, q, logID, portAID, portBID); err != nil {
-			return fmt.Errorf("insert connection: %w", err)
 		}
 	}
 

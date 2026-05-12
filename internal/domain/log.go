@@ -8,8 +8,7 @@ const (
 )
 
 type Log struct {
-	Nodes       []Node
-	Connections []Connection
+	Nodes []Node
 }
 
 type Node struct {
@@ -37,11 +36,4 @@ type NodeInfo struct {
 	SwitchInfo map[string]string
 	SystemInfo map[string]string
 	SharpInfo  map[string]string
-}
-
-type Connection struct {
-	NodeAGUID string
-	PortANum  int
-	NodeBGUID string
-	PortBNum  int
 }
