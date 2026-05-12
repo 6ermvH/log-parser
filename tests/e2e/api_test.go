@@ -294,3 +294,30 @@ func TestE2E_ParseErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestE2E_LogMismatchField(t *testing.T) {
+	parsed := postParse(t, "log_mismatch_field.zip")
+	require.NotEmpty(t, parsed.LogID)
+	require.NotEmpty(t, parsed.Error, "broken log must be rejected")
+	assert.Contains(t, parsed.Error, "column count mismatch")
+
+	var meta logResp
+
+	status := getJSON(t, "/api/v1/log/"+parsed.LogID, &meta)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "failed", meta.Status)
+	assert.Contains(t, meta.Error, "column count mismatch")
+}
+
+func TestE2E_LogNotEndSection(t *testing.T) {
+	parsed := postParse(t, "log_not_end_section.zip")
+	require.NotEmpty(t, parsed.LogID)
+	require.NotEmpty(t, parsed.Error, "log without closing section must be rejected")
+
+	var meta logResp
+
+	status := getJSON(t, "/api/v1/log/"+parsed.LogID, &meta)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "failed", meta.Status)
+	assert.NotEmpty(t, meta.Error)
+}
