@@ -16,7 +16,6 @@ type queryRepo interface {
 	ListNodes(ctx context.Context, logID uuid.UUID) ([]pg.NodeRow, error)
 	ListPortsByLog(ctx context.Context, logID uuid.UUID) ([]pg.PortRow, error)
 	ListPortsByNode(ctx context.Context, nodeID int64) ([]pg.PortRow, error)
-	ListConnections(ctx context.Context, logID uuid.UUID) ([]pg.ConnectionRow, error)
 	GetNode(ctx context.Context, id int64) (pg.NodeRow, error)
 	GetNodeInfo(ctx context.Context, nodeID int64) (pg.NodeInfoRow, bool, error)
 	NodeExists(ctx context.Context, id int64) (bool, error)
@@ -74,12 +73,7 @@ func (s *QueryService) GetTopology(ctx context.Context, logID uuid.UUID) (Topolo
 		return Topology{}, fmt.Errorf("list ports: %w", err)
 	}
 
-	edges, err := s.repo.ListConnections(ctx, logID)
-	if err != nil {
-		return Topology{}, fmt.Errorf("list connections: %w", err)
-	}
-
-	return buildTopology(nodes, ports, edges), nil
+	return buildTopology(nodes, ports), nil
 }
 
 func (s *QueryService) GetNodeDetails(ctx context.Context, id int64) (NodeDetails, error) {
@@ -139,7 +133,7 @@ func (s *QueryService) ListPortsForNode(ctx context.Context, nodeID int64) ([]Po
 	return out, nil
 }
 
-func buildTopology(nodes []pg.NodeRow, ports []pg.PortRow, edges []pg.ConnectionRow) Topology {
+func buildTopology(nodes []pg.NodeRow, ports []pg.PortRow) Topology {
 	sNodes := make([]TopologyNode, 0, len(nodes))
 	for _, n := range nodes {
 		sNodes = append(sNodes, TopologyNode{
@@ -156,12 +150,7 @@ func buildTopology(nodes []pg.NodeRow, ports []pg.PortRow, edges []pg.Connection
 		sPorts = append(sPorts, toServicePort(p))
 	}
 
-	sEdges := make([]Edge, 0, len(edges))
-	for _, e := range edges {
-		sEdges = append(sEdges, Edge{PortAID: e.PortAID, PortBID: e.PortBID})
-	}
-
-	return Topology{Nodes: sNodes, Ports: sPorts, Edges: sEdges}
+	return Topology{Nodes: sNodes, Ports: sPorts}
 }
 
 func toServicePort(p pg.PortRow) Port {

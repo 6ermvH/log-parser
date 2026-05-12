@@ -119,7 +119,6 @@ func (s *ParseService) process(ctx context.Context, id uuid.UUID, path string) {
 		"save_duration_ms", saveDuration.Milliseconds(),
 		"nodes_count", len(dlog.Nodes),
 		"ports_count", countPorts(dlog.Nodes),
-		"connections_count", len(dlog.Connections),
 	)
 }
 

@@ -103,21 +103,6 @@ func (mr *MockqueryRepoMockRecorder) GetNodeInfo(ctx, nodeID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNodeInfo", reflect.TypeOf((*MockqueryRepo)(nil).GetNodeInfo), ctx, nodeID)
 }
 
-// ListConnections mocks base method.
-func (m *MockqueryRepo) ListConnections(ctx context.Context, logID uuid.UUID) ([]postgres.ConnectionRow, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListConnections", ctx, logID)
-	ret0, _ := ret[0].([]postgres.ConnectionRow)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListConnections indicates an expected call of ListConnections.
-func (mr *MockqueryRepoMockRecorder) ListConnections(ctx, logID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListConnections", reflect.TypeOf((*MockqueryRepo)(nil).ListConnections), ctx, logID)
-}
-
 // ListNodes mocks base method.
 func (m *MockqueryRepo) ListNodes(ctx context.Context, logID uuid.UUID) ([]postgres.NodeRow, error) {
 	m.ctrl.T.Helper()
