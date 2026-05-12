@@ -14,6 +14,7 @@ import (
 	"github.com/6ermvH/log-parser/internal/config"
 	"github.com/6ermvH/log-parser/internal/logger"
 	"github.com/6ermvH/log-parser/internal/parser"
+	"github.com/6ermvH/log-parser/internal/service"
 	"github.com/6ermvH/log-parser/internal/storage/migrate"
 	"github.com/6ermvH/log-parser/internal/storage/postgres"
 	"github.com/6ermvH/log-parser/migrations"
@@ -58,13 +59,15 @@ func run() error {
 
 	repo := postgres.NewRepository(pool)
 	parserSvc := parser.New()
+	parseService := service.NewParseService(parserSvc, repo, log)
+	queryService := service.NewQueryService(repo)
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
-		Parser:  parserSvc,
-		Storage: repo,
-		Pool:    pool,
-		Logger:  log,
-		DataDir: cfg.DataDir,
+		ParseService: parseService,
+		QueryService: queryService,
+		Pool:         pool,
+		Logger:       log,
+		DataDir:      cfg.DataDir,
 	})
 
 	srv := &http.Server{

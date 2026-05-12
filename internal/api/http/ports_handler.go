@@ -2,16 +2,16 @@ package http
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
-	pg "github.com/6ermvH/log-parser/internal/storage/postgres"
+	"github.com/6ermvH/log-parser/internal/service"
 )
 
-type portsStorage interface {
-	NodeExists(ctx context.Context, id int64) (bool, error)
-	ListPortsByNode(ctx context.Context, nodeID int64) ([]pg.PortRow, error)
+type portsQuery interface {
+	ListPortsForNode(ctx context.Context, nodeID int64) ([]service.Port, error)
 }
 
 type portResponse struct {
@@ -31,7 +31,7 @@ type portsResponse struct {
 	Ports []portResponse `json:"ports"`
 }
 
-func portsHandler(storage portsStorage, log *slog.Logger) http.HandlerFunc {
+func portsHandler(q portsQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		nodeID, err := strconv.ParseInt(r.PathValue("node_id"), 10, 64)
 		if err != nil {
@@ -40,38 +40,30 @@ func portsHandler(storage portsStorage, log *slog.Logger) http.HandlerFunc {
 			return
 		}
 
-		exists, err := storage.NodeExists(r.Context(), nodeID)
+		ports, err := q.ListPortsForNode(r.Context(), nodeID)
 		if err != nil {
-			log.Error("node exists", "err", err, "node_id", nodeID)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
+			if errors.Is(err, service.ErrNotFound) {
+				writeError(w, log, http.StatusNotFound, "node not found")
 
-			return
-		}
+				return
+			}
 
-		if !exists {
-			writeError(w, log, http.StatusNotFound, "node not found")
-
-			return
-		}
-
-		rows, err := storage.ListPortsByNode(r.Context(), nodeID)
-		if err != nil {
 			log.Error("list ports", "err", err, "node_id", nodeID)
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 
 			return
 		}
 
-		ports := make([]portResponse, 0, len(rows))
-		for _, p := range rows {
-			ports = append(ports, toPortResponse(p))
+		resp := portsResponse{Ports: make([]portResponse, 0, len(ports))}
+		for _, p := range ports {
+			resp.Ports = append(resp.Ports, toPortResponse(p))
 		}
 
-		writeJSON(w, log, http.StatusOK, portsResponse{Ports: ports})
+		writeJSON(w, log, http.StatusOK, resp)
 	}
 }
 
-func toPortResponse(p pg.PortRow) portResponse {
+func toPortResponse(p service.Port) portResponse {
 	return portResponse{
 		ID:            p.ID,
 		NodeID:        p.NodeID,

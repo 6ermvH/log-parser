@@ -8,19 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
-
-	"github.com/6ermvH/log-parser/internal/domain"
+	"github.com/6ermvH/log-parser/internal/service"
 )
 
-type parseStorage interface {
-	InsertProcessingLog(ctx context.Context, id uuid.UUID) error
-	SaveDomainLog(ctx context.Context, id uuid.UUID, dlog domain.Log) error
-	MarkLogFailed(ctx context.Context, id uuid.UUID, message string) error
-}
-
-type logParser interface {
-	Parse(path string) (domain.Log, error)
+type parseRunner interface {
+	Run(ctx context.Context, path string) (service.ParseResult, error)
 }
 
 type parseRequest struct {
@@ -32,7 +24,7 @@ type parseResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-func parseHandler(parser logParser, storage parseStorage, log *slog.Logger, dataDir string) http.HandlerFunc {
+func parseHandler(svc parseRunner, log *slog.Logger, dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req parseRequest
 
@@ -55,47 +47,24 @@ func parseHandler(parser logParser, storage parseStorage, log *slog.Logger, data
 			return
 		}
 
-		logID, err := uuid.NewV7()
+		result, err := svc.Run(r.Context(), resolvedPath)
 		if err != nil {
-			log.Error("generate uuid", "err", err)
+			log.Error("parse service", "err", err)
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 
 			return
 		}
 
-		if err := storage.InsertProcessingLog(r.Context(), logID); err != nil {
-			log.Error("insert processing log", "err", err, "log_id", logID)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
+		if result.ParseErr != nil {
+			writeJSON(w, log, http.StatusBadRequest, parseResponse{
+				LogID: result.LogID.String(),
+				Error: result.ParseErr.Error(),
+			})
 
 			return
 		}
 
-		dlog, parseErr := parser.Parse(resolvedPath)
-		if parseErr != nil {
-			log.Warn("parse failed", "err", parseErr, "log_id", logID, "path", resolvedPath)
-
-			if markErr := storage.MarkLogFailed(r.Context(), logID, parseErr.Error()); markErr != nil {
-				log.Error("mark log failed", "err", markErr, "log_id", logID)
-			}
-
-			writeJSON(w, log, http.StatusBadRequest, parseResponse{LogID: logID.String(), Error: parseErr.Error()})
-
-			return
-		}
-
-		if err := storage.SaveDomainLog(r.Context(), logID, dlog); err != nil {
-			log.Error("save domain log", "err", err, "log_id", logID)
-
-			if markErr := storage.MarkLogFailed(r.Context(), logID, "save failed: "+err.Error()); markErr != nil {
-				log.Error("mark log failed after save error", "err", markErr, "log_id", logID)
-			}
-
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
-
-			return
-		}
-
-		writeJSON(w, log, http.StatusCreated, parseResponse{LogID: logID.String()})
+		writeJSON(w, log, http.StatusCreated, parseResponse{LogID: result.LogID.String()})
 	}
 }
 

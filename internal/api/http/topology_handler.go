@@ -8,14 +8,11 @@ import (
 
 	"github.com/google/uuid"
 
-	pg "github.com/6ermvH/log-parser/internal/storage/postgres"
+	"github.com/6ermvH/log-parser/internal/service"
 )
 
-type topologyStorage interface {
-	GetLog(ctx context.Context, id uuid.UUID) (pg.LogMeta, error)
-	ListNodes(ctx context.Context, logID uuid.UUID) ([]pg.NodeRow, error)
-	ListPortsByLog(ctx context.Context, logID uuid.UUID) ([]pg.PortRow, error)
-	ListConnections(ctx context.Context, logID uuid.UUID) ([]pg.ConnectionRow, error)
+type topologyQuery interface {
+	GetTopology(ctx context.Context, logID uuid.UUID) (service.Topology, error)
 }
 
 type topologyNode struct {
@@ -37,7 +34,7 @@ type topologyResponse struct {
 	Edges []topologyEdge `json:"edges"`
 }
 
-func topologyHandler(storage topologyStorage, log *slog.Logger) http.HandlerFunc {
+func topologyHandler(q topologyQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logID, err := uuid.Parse(r.PathValue("log_id"))
 		if err != nil {
@@ -46,50 +43,27 @@ func topologyHandler(storage topologyStorage, log *slog.Logger) http.HandlerFunc
 			return
 		}
 
-		if _, gErr := storage.GetLog(r.Context(), logID); gErr != nil {
-			if errors.Is(gErr, pg.ErrNotFound) {
+		topo, err := q.GetTopology(r.Context(), logID)
+		if err != nil {
+			if errors.Is(err, service.ErrNotFound) {
 				writeError(w, log, http.StatusNotFound, "log not found")
 
 				return
 			}
 
-			log.Error("get log", "err", gErr, "log_id", logID)
+			log.Error("get topology", "err", err, "log_id", logID)
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 
 			return
 		}
 
-		nodes, err := storage.ListNodes(r.Context(), logID)
-		if err != nil {
-			log.Error("list nodes", "err", err, "log_id", logID)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
-
-			return
-		}
-
-		ports, err := storage.ListPortsByLog(r.Context(), logID)
-		if err != nil {
-			log.Error("list ports", "err", err, "log_id", logID)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
-
-			return
-		}
-
-		edges, err := storage.ListConnections(r.Context(), logID)
-		if err != nil {
-			log.Error("list connections", "err", err, "log_id", logID)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
-
-			return
-		}
-
-		writeJSON(w, log, http.StatusOK, buildTopologyResponse(nodes, ports, edges))
+		writeJSON(w, log, http.StatusOK, buildTopologyResponse(topo))
 	}
 }
 
-func buildTopologyResponse(nodes []pg.NodeRow, ports []pg.PortRow, edges []pg.ConnectionRow) topologyResponse {
-	respNodes := make([]topologyNode, 0, len(nodes))
-	for _, n := range nodes {
+func buildTopologyResponse(t service.Topology) topologyResponse {
+	respNodes := make([]topologyNode, 0, len(t.Nodes))
+	for _, n := range t.Nodes {
 		respNodes = append(respNodes, topologyNode{
 			ID:    n.ID,
 			LogID: n.LogID.String(),
@@ -99,13 +73,13 @@ func buildTopologyResponse(nodes []pg.NodeRow, ports []pg.PortRow, edges []pg.Co
 		})
 	}
 
-	respPorts := make([]portResponse, 0, len(ports))
-	for _, p := range ports {
+	respPorts := make([]portResponse, 0, len(t.Ports))
+	for _, p := range t.Ports {
 		respPorts = append(respPorts, toPortResponse(p))
 	}
 
-	respEdges := make([]topologyEdge, 0, len(edges))
-	for _, e := range edges {
+	respEdges := make([]topologyEdge, 0, len(t.Edges))
+	for _, e := range t.Edges {
 		respEdges = append(respEdges, topologyEdge{PortAID: e.PortAID, PortBID: e.PortBID})
 	}
 

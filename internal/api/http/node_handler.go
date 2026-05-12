@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"strconv"
 
-	pg "github.com/6ermvH/log-parser/internal/storage/postgres"
+	"github.com/6ermvH/log-parser/internal/service"
 )
 
-type nodeStorage interface {
-	GetNode(ctx context.Context, id int64) (pg.NodeRow, error)
-	GetNodeInfo(ctx context.Context, nodeID int64) (pg.NodeInfoRow, bool, error)
+type nodeQuery interface {
+	GetNodeDetails(ctx context.Context, id int64) (service.NodeDetails, error)
 }
 
 type nodeResponse struct {
@@ -28,7 +27,7 @@ type nodeResponse struct {
 	SharpInfo       map[string]string `json:"sharp_info,omitempty"`
 }
 
-func nodeHandler(storage nodeStorage, log *slog.Logger) http.HandlerFunc {
+func nodeHandler(q nodeQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("node_id"), 10, 64)
 		if err != nil {
@@ -37,44 +36,31 @@ func nodeHandler(storage nodeStorage, log *slog.Logger) http.HandlerFunc {
 			return
 		}
 
-		node, err := storage.GetNode(r.Context(), id)
+		details, err := q.GetNodeDetails(r.Context(), id)
 		if err != nil {
-			if errors.Is(err, pg.ErrNotFound) {
+			if errors.Is(err, service.ErrNotFound) {
 				writeError(w, log, http.StatusNotFound, "node not found")
 
 				return
 			}
 
-			log.Error("get node", "err", err, "node_id", id)
+			log.Error("get node details", "err", err, "node_id", id)
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 
 			return
 		}
 
-		info, hasInfo, err := storage.GetNodeInfo(r.Context(), id)
-		if err != nil {
-			log.Error("get node info", "err", err, "node_id", id)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
-
-			return
-		}
-
-		resp := nodeResponse{
-			ID:              node.ID,
-			LogID:           node.LogID.String(),
-			GUID:            node.GUID,
-			Type:            node.Type,
-			Desc:            node.Desc,
-			SystemImageGUID: node.SystemImageGUID,
-			PortGUID:        node.PortGUID,
-		}
-
-		if hasInfo {
-			resp.SwitchInfo = info.SwitchInfo
-			resp.SystemInfo = info.SystemInfo
-			resp.SharpInfo = info.SharpInfo
-		}
-
-		writeJSON(w, log, http.StatusOK, resp)
+		writeJSON(w, log, http.StatusOK, nodeResponse{
+			ID:              details.ID,
+			LogID:           details.LogID.String(),
+			GUID:            details.GUID,
+			Type:            details.Type,
+			Desc:            details.Desc,
+			SystemImageGUID: details.SystemImageGUID,
+			PortGUID:        details.PortGUID,
+			SwitchInfo:      details.SwitchInfo,
+			SystemInfo:      details.SystemInfo,
+			SharpInfo:       details.SharpInfo,
+		})
 	}
 }

@@ -9,12 +9,11 @@ import (
 
 	"github.com/google/uuid"
 
-	pg "github.com/6ermvH/log-parser/internal/storage/postgres"
+	"github.com/6ermvH/log-parser/internal/service"
 )
 
-type logStorage interface {
-	GetLog(ctx context.Context, id uuid.UUID) (pg.LogMeta, error)
-	CountByLog(ctx context.Context, logID uuid.UUID) (pg.Counts, error)
+type logMetaQuery interface {
+	GetLogMeta(ctx context.Context, id uuid.UUID) (service.LogMeta, error)
 }
 
 type logResponse struct {
@@ -26,7 +25,7 @@ type logResponse struct {
 	Error      string    `json:"error,omitempty"`
 }
 
-func logMetaHandler(storage logStorage, log *slog.Logger) http.HandlerFunc {
+func logMetaHandler(q logMetaQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(r.PathValue("log_id"))
 		if err != nil {
@@ -35,23 +34,15 @@ func logMetaHandler(storage logStorage, log *slog.Logger) http.HandlerFunc {
 			return
 		}
 
-		meta, err := storage.GetLog(r.Context(), id)
+		meta, err := q.GetLogMeta(r.Context(), id)
 		if err != nil {
-			if errors.Is(err, pg.ErrNotFound) {
+			if errors.Is(err, service.ErrNotFound) {
 				writeError(w, log, http.StatusNotFound, "log not found")
 
 				return
 			}
 
-			log.Error("get log", "err", err, "log_id", id)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
-
-			return
-		}
-
-		counts, err := storage.CountByLog(r.Context(), id)
-		if err != nil {
-			log.Error("count by log", "err", err, "log_id", id)
+			log.Error("get log meta", "err", err, "log_id", id)
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 
 			return
@@ -61,8 +52,8 @@ func logMetaHandler(storage logStorage, log *slog.Logger) http.HandlerFunc {
 			ID:         meta.ID.String(),
 			Status:     meta.Status,
 			UploadedAt: meta.UploadedAt,
-			NodesCount: counts.Nodes,
-			PortsCount: counts.Ports,
+			NodesCount: meta.NodesCount,
+			PortsCount: meta.PortsCount,
 			Error:      meta.ErrorMessage,
 		})
 	}
