@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	httpapi "github.com/6ermvH/log-parser/internal/api/http"
+	httpapi "github.com/6ermvH/log-parser/internal/api/v1/http"
 	"github.com/6ermvH/log-parser/internal/config"
 	"github.com/6ermvH/log-parser/internal/logger"
 	"github.com/6ermvH/log-parser/internal/parser"

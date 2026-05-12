@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/6ermvH/log-parser/internal/api/http/mocks"
+	"github.com/6ermvH/log-parser/internal/api/v1/http/mocks"
 )
 
 func TestHealthHandler_OK(t *testing.T) {

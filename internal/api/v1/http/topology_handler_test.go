@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/6ermvH/log-parser/internal/api/http/mocks"
+	"github.com/6ermvH/log-parser/internal/api/v1/http/mocks"
 	"github.com/6ermvH/log-parser/internal/domain"
 	"github.com/6ermvH/log-parser/internal/service"
 )
