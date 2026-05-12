@@ -20,7 +20,6 @@ const (
 	sectionPorts      = "PORTS"
 	sectionSwitches   = "SWITCHES"
 	sectionSystemInfo = "SYSTEM_GENERAL_INFORMATION"
-	sectionLinks      = "LINKS"
 
 	colNodeGUID        = "NodeGUID"
 	colNodeGUIDAlt     = "NodeGuid"
@@ -35,10 +34,6 @@ const (
 	colLinkSpeedActv   = "LinkSpeedActv"
 	colLinkWidthActv   = "LinkWidthActv"
 	colLID             = "LID"
-	colLinkNodeGUID1   = "NodeGuid1"
-	colLinkNodeGUID2   = "NodeGuid2"
-	colLinkPortNum1    = "PortNum1"
-	colLinkPortNum2    = "PortNum2"
 
 	nodeTypeCodeHost   = "1"
 	nodeTypeCodeSwitch = "2"
@@ -46,8 +41,7 @@ const (
 )
 
 type Aggregator struct {
-	nodes       map[string]*domain.Node
-	connections []domain.Connection
+	nodes map[string]*domain.Node
 }
 
 func NewAggregator() *Aggregator {
@@ -73,10 +67,7 @@ func (a *Aggregator) Result() domain.Log {
 		nodes = append(nodes, *n)
 	}
 
-	return domain.Log{
-		Nodes:       nodes,
-		Connections: a.connections,
-	}
+	return domain.Log{Nodes: nodes}
 }
 
 func (a *Aggregator) handleEvent(e sectionEvent) {
@@ -89,8 +80,6 @@ func (a *Aggregator) handleEvent(e sectionEvent) {
 		a.upsertSwitchInfo(e.Columns, e.Row)
 	case sectionSystemInfo:
 		a.upsertSystemInfo(e.Columns, e.Row)
-	case sectionLinks:
-		a.addLink(e.Columns, e.Row)
 	}
 }
 
@@ -165,17 +154,6 @@ func (a *Aggregator) upsertSystemInfo(cols, row []string) {
 	}
 
 	node.Info.SystemInfo = m
-}
-
-func (a *Aggregator) addLink(cols, row []string) {
-	m := assocColumns(cols, row)
-
-	a.connections = append(a.connections, domain.Connection{
-		NodeAGUID: m[colLinkNodeGUID1],
-		PortANum:  parseIntOrZero(m[colLinkPortNum1]),
-		NodeBGUID: m[colLinkNodeGUID2],
-		PortBNum:  parseIntOrZero(m[colLinkPortNum2]),
-	})
 }
 
 func (a *Aggregator) analyzeSharp(r io.Reader) error {
