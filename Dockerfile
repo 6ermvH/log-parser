@@ -7,6 +7,7 @@ RUN go mod download
 
 COPY cmd ./cmd
 COPY internal ./internal
+COPY migrations ./migrations
 
 RUN CGO_ENABLED=0 go build -o /out/log-parser ./cmd/server
 
@@ -17,7 +18,6 @@ WORKDIR /app
 
 COPY --from=build /out/log-parser /app/log-parser
 COPY configs ./configs
-COPY migrations ./migrations
 
 EXPOSE 8080
 
