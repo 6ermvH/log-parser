@@ -56,7 +56,15 @@ func (m *sectionMachine) Run(r io.Reader) error {
 		}
 	}
 
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	if m.state != stateOutside {
+		return fmt.Errorf("section %s: unclosed at end of stream", m.section)
+	}
+
+	return nil
 }
 
 func (m *sectionMachine) step(line string) error {
@@ -86,6 +94,11 @@ func (m *sectionMachine) step(line string) error {
 		row, err := parseCSVLine(line)
 		if err != nil {
 			return fmt.Errorf("section %s: row: %w", m.section, err)
+		}
+
+		if len(row) != len(m.columns) {
+			return fmt.Errorf("section %s: row column count mismatch: expected %d, got %d",
+				m.section, len(m.columns), len(row))
 		}
 
 		m.emit(sectionEvent{Name: m.section, Columns: m.columns, Row: row})
