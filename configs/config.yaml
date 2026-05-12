@@ -1,0 +1,3 @@
+reaper:
+  timeout: 5m
+  tick: 30s
