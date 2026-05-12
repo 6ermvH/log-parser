@@ -1,0 +1,13 @@
+.env
+.obsidian/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+log-parser
+/bin/
+/dist/
+
+data/*
+!data/.gitkeep
