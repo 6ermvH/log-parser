@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/6ermvH/log-parser/internal/service"
+	"github.com/google/uuid"
 )
 
-type parseRunner interface {
-	Run(ctx context.Context, path string) (service.ParseResult, error)
+type parseSubmitter interface {
+	Submit(ctx context.Context, path string) (uuid.UUID, error)
 }
 
 type parseRequest struct {
@@ -21,23 +21,21 @@ type parseRequest struct {
 
 type parseResponse struct {
 	LogID string `json:"log_id"`
-	Error string `json:"error,omitempty"`
 }
 
-// parseHandler runs the parse pipeline.
+// parseHandler accepts a log archive for asynchronous parsing.
 //
-//	@Summary		Parse a log archive
-//	@Description	Opens the zip archive (path relative to data/), parses InfiniBand topology and saves it.
+//	@Summary		Submit a log archive for parsing
+//	@Description	Accepts a path to a zip archive (relative to data/), persists a `processing` log entry and runs parsing in background. Use GET /api/v1/log/{log_id} to poll status.
 //	@Tags			parse
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		parseRequest	true	"Path to log archive (relative to data/)"
-//	@Success		201		{object}	parseResponse	"log_id of the successfully parsed log"
-//	@Failure		400		{object}	parseResponse	"parse error — log_id present, error contains parser message"
+//	@Success		202		{object}	parseResponse	"log_id; parsing is queued"
 //	@Failure		400		{object}	errorResponse	"validation error (bad body, empty path, path outside data/)"
-//	@Failure		500		{object}	errorResponse	"internal error"
+//	@Failure		500		{object}	errorResponse	"internal error (failed to persist processing log)"
 //	@Router			/api/v1/parse [post]
-func parseHandler(svc parseRunner, log *slog.Logger, dataDir string) http.HandlerFunc {
+func parseHandler(svc parseSubmitter, log *slog.Logger, dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req parseRequest
 
@@ -60,24 +58,15 @@ func parseHandler(svc parseRunner, log *slog.Logger, dataDir string) http.Handle
 			return
 		}
 
-		result, err := svc.Run(r.Context(), resolvedPath)
+		logID, err := svc.Submit(r.Context(), resolvedPath)
 		if err != nil {
-			log.Error("parse service", "err", err)
+			log.Error("submit parse", "err", err)
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 
 			return
 		}
 
-		if result.ParseErr != nil {
-			writeJSON(w, log, http.StatusBadRequest, parseResponse{
-				LogID: result.LogID.String(),
-				Error: result.ParseErr.Error(),
-			})
-
-			return
-		}
-
-		writeJSON(w, log, http.StatusCreated, parseResponse{LogID: result.LogID.String()})
+		writeJSON(w, log, http.StatusAccepted, parseResponse{LogID: logID.String()})
 	}
 }
 

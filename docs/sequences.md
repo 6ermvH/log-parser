@@ -1,6 +1,10 @@
 # Log Parser — Sequence Diagrams
 
-## POST /api/v1/parse
+## POST /api/v1/parse (async)
+
+Парсинг асинхронный — клиент сразу получает `log_id`, обработка идёт в фоновой горутине. Статус узнавать через `GET /api/v1/log/{log_id}` (polling).
+
+### Синхронная часть (HTTP-запрос)
 
 ```mermaid
 sequenceDiagram
@@ -8,44 +12,73 @@ sequenceDiagram
     participant C as Client
     participant H as Handler
     participant P as ParserService
+    participant R as Repository
+    participant DB as PostgreSQL
+    participant G as background goroutine
+
+    C->>H: POST /api/v1/parse {path}
+    H->>P: Submit(ctx, path)
+
+    P->>R: InsertProcessingLog(uuid)
+    R->>DB: INSERT logs (status processing) — commit
+    DB-->>R: ok
+    R-->>P: ok
+
+    P->>G: spawn(process)
+    P-->>H: log_id
+    H-->>C: 202 Accepted {log_id}
+```
+
+### Фоновая горутина
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as background goroutine
     participant FS as Logs Volume
     participant A as Aggregator
     participant R as Repository
     participant DB as PostgreSQL
 
-    C->>H: POST /api/v1/parse {path}
-    H->>P: ParseLog(ctx, path)
-
-    P->>R: InsertLog(id, status processing)
-    R->>DB: INSERT into logs (commit)
-    DB-->>R: ok
-    R-->>P: log_id
-
-    P->>FS: open zip
-    FS-->>P: zip entries
+    G->>FS: open zip
+    FS-->>G: zip entries
 
     loop for each file in archive
-        P->>A: AnalyzeFile(name, reader)
+        G->>A: AnalyzeFile(name, reader)
         Note over A: internal state machine<br/>START_X / Header / Body / END_X<br/>emits events via callback
-        A-->>P: nil or error
+        A-->>G: nil or error
     end
 
     alt parse succeeded
-        P->>A: Result()
-        A-->>P: domain.Log
-        P->>R: SaveDomain + UpdateStatus ok (single tx)
+        G->>A: Result()
+        A-->>G: domain.Log
+        G->>R: SaveDomain + UpdateStatus ok (single tx)
         R->>DB: tx — insert nodes/ports/nodes_info, update logs
         DB-->>R: ok
-        R-->>P: ok
-        P-->>H: log_id
-        H-->>C: 201 {log_id}
     else parse failed
-        P->>R: MarkFailed(log_id, error) (single tx)
+        G->>R: MarkFailed(log_id, error) (single tx)
         R->>DB: tx — update logs status failed, insert failed_logs
         DB-->>R: ok
-        R-->>P: ok
-        P-->>H: error
-        H-->>C: 400 {log_id, error}
+    end
+```
+
+### Клиентский polling
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant H as Handler
+    participant R as Repository
+    participant DB as PostgreSQL
+
+    loop until status != processing
+        C->>H: GET /api/v1/log/{log_id}
+        H->>R: GetLog(id)
+        R->>DB: SELECT logs LEFT JOIN failed_logs
+        DB-->>R: row
+        R-->>H: status, error?
+        H-->>C: 200 {status, error?, counts}
     end
 ```
 

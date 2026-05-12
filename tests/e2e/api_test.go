@@ -123,8 +123,16 @@ func runTests(m *testing.M) int {
 
 type parseResp struct {
 	LogID string `json:"log_id"`
-	Error string `json:"error,omitempty"`
 }
+
+const (
+	statusProcessing = "processing"
+	statusOK         = "ok"
+	statusFailed     = "failed"
+
+	logPollInterval = 50 * time.Millisecond
+	logPollTimeout  = 10 * time.Second
+)
 
 type logResp struct {
 	ID         string `json:"id"`
@@ -186,6 +194,27 @@ func postParse(t *testing.T, path string) parseResp {
 	return out
 }
 
+func waitLog(t *testing.T, logID string) logResp {
+	t.Helper()
+
+	deadline := time.Now().Add(logPollTimeout)
+
+	for time.Now().Before(deadline) {
+		var meta logResp
+
+		status := getJSON(t, "/api/v1/log/"+logID, &meta)
+		if status == http.StatusOK && meta.Status != statusProcessing {
+			return meta
+		}
+
+		time.Sleep(logPollInterval)
+	}
+
+	t.Fatalf("log %s did not leave processing state within %s", logID, logPollTimeout)
+
+	return logResp{}
+}
+
 func getJSON(t *testing.T, path string, dst any) int {
 	t.Helper()
 
@@ -207,19 +236,15 @@ func getJSON(t *testing.T, path string, dst any) int {
 func TestE2E_LogWithoutLinks(t *testing.T) {
 	parsed := postParse(t, "log.zip")
 	require.NotEmpty(t, parsed.LogID)
-	assert.Empty(t, parsed.Error)
 
-	var meta logResp
-
-	status := getJSON(t, "/api/v1/log/"+parsed.LogID, &meta)
-	require.Equal(t, http.StatusOK, status)
-	assert.Equal(t, "ok", meta.Status)
+	meta := waitLog(t, parsed.LogID)
+	assert.Equal(t, statusOK, meta.Status)
 	assert.Equal(t, 5, meta.NodesCount)
 	assert.Positive(t, meta.PortsCount)
 
 	var topo topologyResp
 
-	status = getJSON(t, "/api/v1/topology/"+parsed.LogID, &topo)
+	status := getJSON(t, "/api/v1/topology/"+parsed.LogID, &topo)
 	require.Equal(t, http.StatusOK, status)
 	assert.Len(t, topo.Nodes, 5)
 	assert.NotEmpty(t, topo.Ports)
@@ -254,7 +279,9 @@ func TestE2E_LogWithoutLinks(t *testing.T) {
 func TestE2E_LogWithLinks(t *testing.T) {
 	parsed := postParse(t, "log_with_links.zip")
 	require.NotEmpty(t, parsed.LogID)
-	assert.Empty(t, parsed.Error)
+
+	meta := waitLog(t, parsed.LogID)
+	require.Equal(t, statusOK, meta.Status)
 
 	var topo topologyResp
 
@@ -277,47 +304,57 @@ func TestE2E_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, getJSON(t, "/api/v1/port/9999999", &portsResp{}))
 }
 
-func TestE2E_ParseErrors(t *testing.T) {
+func TestE2E_ParseValidationErrors(t *testing.T) {
 	tests := []struct {
 		name string
 		path string
 	}{
-		{"missing file", "missing.zip"},
 		{"path traversal", "../etc/passwd"},
 		{"empty path", ""},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parsed := postParse(t, tc.path)
-			assert.NotEmpty(t, parsed.Error, "expected error message")
+			body, _ := json.Marshal(map[string]string{"path": tc.path})
+
+			req, err := http.NewRequestWithContext(t.Context(),
+				http.MethodPost, testServer.URL+"/api/v1/parse", bytes.NewReader(body))
+			require.NoError(t, err)
+
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		})
 	}
+}
+
+func TestE2E_ParseMissingFile(t *testing.T) {
+	parsed := postParse(t, "missing.zip")
+	require.NotEmpty(t, parsed.LogID)
+
+	meta := waitLog(t, parsed.LogID)
+	assert.Equal(t, statusFailed, meta.Status)
+	assert.Contains(t, meta.Error, "open zip")
 }
 
 func TestE2E_LogMismatchField(t *testing.T) {
 	parsed := postParse(t, "log_mismatch_field.zip")
 	require.NotEmpty(t, parsed.LogID)
-	require.NotEmpty(t, parsed.Error, "broken log must be rejected")
-	assert.Contains(t, parsed.Error, "column count mismatch")
 
-	var meta logResp
-
-	status := getJSON(t, "/api/v1/log/"+parsed.LogID, &meta)
-	require.Equal(t, http.StatusOK, status)
-	assert.Equal(t, "failed", meta.Status)
+	meta := waitLog(t, parsed.LogID)
+	assert.Equal(t, statusFailed, meta.Status)
 	assert.Contains(t, meta.Error, "column count mismatch")
 }
 
 func TestE2E_LogNotEndSection(t *testing.T) {
 	parsed := postParse(t, "log_not_end_section.zip")
 	require.NotEmpty(t, parsed.LogID)
-	require.NotEmpty(t, parsed.Error, "log without closing section must be rejected")
 
-	var meta logResp
-
-	status := getJSON(t, "/api/v1/log/"+parsed.LogID, &meta)
-	require.Equal(t, http.StatusOK, status)
-	assert.Equal(t, "failed", meta.Status)
+	meta := waitLog(t, parsed.LogID)
+	assert.Equal(t, statusFailed, meta.Status)
 	assert.NotEmpty(t, meta.Error)
 }

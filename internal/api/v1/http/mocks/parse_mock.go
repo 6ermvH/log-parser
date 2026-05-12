@@ -13,45 +13,45 @@ import (
 	context "context"
 	reflect "reflect"
 
-	service "github.com/6ermvH/log-parser/internal/service"
+	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockparseRunner is a mock of parseRunner interface.
-type MockparseRunner struct {
+// MockparseSubmitter is a mock of parseSubmitter interface.
+type MockparseSubmitter struct {
 	ctrl     *gomock.Controller
-	recorder *MockparseRunnerMockRecorder
+	recorder *MockparseSubmitterMockRecorder
 	isgomock struct{}
 }
 
-// MockparseRunnerMockRecorder is the mock recorder for MockparseRunner.
-type MockparseRunnerMockRecorder struct {
-	mock *MockparseRunner
+// MockparseSubmitterMockRecorder is the mock recorder for MockparseSubmitter.
+type MockparseSubmitterMockRecorder struct {
+	mock *MockparseSubmitter
 }
 
-// NewMockparseRunner creates a new mock instance.
-func NewMockparseRunner(ctrl *gomock.Controller) *MockparseRunner {
-	mock := &MockparseRunner{ctrl: ctrl}
-	mock.recorder = &MockparseRunnerMockRecorder{mock}
+// NewMockparseSubmitter creates a new mock instance.
+func NewMockparseSubmitter(ctrl *gomock.Controller) *MockparseSubmitter {
+	mock := &MockparseSubmitter{ctrl: ctrl}
+	mock.recorder = &MockparseSubmitterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockparseRunner) EXPECT() *MockparseRunnerMockRecorder {
+func (m *MockparseSubmitter) EXPECT() *MockparseSubmitterMockRecorder {
 	return m.recorder
 }
 
-// Run mocks base method.
-func (m *MockparseRunner) Run(ctx context.Context, path string) (service.ParseResult, error) {
+// Submit mocks base method.
+func (m *MockparseSubmitter) Submit(ctx context.Context, path string) (uuid.UUID, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Run", ctx, path)
-	ret0, _ := ret[0].(service.ParseResult)
+	ret := m.ctrl.Call(m, "Submit", ctx, path)
+	ret0, _ := ret[0].(uuid.UUID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Run indicates an expected call of Run.
-func (mr *MockparseRunnerMockRecorder) Run(ctx, path any) *gomock.Call {
+// Submit indicates an expected call of Submit.
+func (mr *MockparseSubmitterMockRecorder) Submit(ctx, path any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockparseRunner)(nil).Run), ctx, path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockparseSubmitter)(nil).Submit), ctx, path)
 }

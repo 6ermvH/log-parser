@@ -18,7 +18,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/6ermvH/log-parser/internal/api/v1/http/mocks"
-	"github.com/6ermvH/log-parser/internal/service"
 )
 
 func discardLogger() *slog.Logger {
@@ -30,14 +29,14 @@ func decodeJSON(t *testing.T, body io.Reader, dst any) {
 	require.NoError(t, json.NewDecoder(body).Decode(dst))
 }
 
-func TestParseHandler_Success(t *testing.T) {
+func TestParseHandler_Accepted(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseRunner(ctrl)
+	svc := mocks.NewMockparseSubmitter(ctrl)
 
 	logID := uuid.New()
-	svc.EXPECT().Run(gomock.Any(), gomock.Any()).Return(service.ParseResult{LogID: logID}, nil)
+	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(logID, nil)
 
 	h := parseHandler(svc, discardLogger(), t.TempDir())
 
@@ -46,48 +45,21 @@ func TestParseHandler_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h(w, req)
 
-	require.Equal(t, http.StatusCreated, w.Code)
+	require.Equal(t, http.StatusAccepted, w.Code)
 
 	var resp parseResponse
 
 	decodeJSON(t, w.Body, &resp)
 	assert.Equal(t, logID.String(), resp.LogID)
-	assert.Empty(t, resp.Error)
 }
 
-func TestParseHandler_ParseError(t *testing.T) {
+func TestParseHandler_SubmitError(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseRunner(ctrl)
+	svc := mocks.NewMockparseSubmitter(ctrl)
 
-	logID := uuid.New()
-	parseErr := errors.New("broken zip")
-	svc.EXPECT().Run(gomock.Any(), gomock.Any()).Return(service.ParseResult{LogID: logID, ParseErr: parseErr}, nil)
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":"log.zip"}`))
-	w := httptest.NewRecorder()
-	h(w, req)
-
-	require.Equal(t, http.StatusBadRequest, w.Code)
-
-	var resp parseResponse
-
-	decodeJSON(t, w.Body, &resp)
-	assert.Equal(t, logID.String(), resp.LogID)
-	assert.Equal(t, "broken zip", resp.Error)
-}
-
-func TestParseHandler_ServiceSystemError(t *testing.T) {
-	t.Parallel()
-
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseRunner(ctrl)
-
-	svc.EXPECT().Run(gomock.Any(), gomock.Any()).Return(service.ParseResult{}, errors.New("db down"))
+	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, errors.New("db down"))
 
 	h := parseHandler(svc, discardLogger(), t.TempDir())
 
@@ -103,7 +75,7 @@ func TestParseHandler_InvalidJSON(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseRunner(ctrl)
+	svc := mocks.NewMockparseSubmitter(ctrl)
 
 	h := parseHandler(svc, discardLogger(), t.TempDir())
 
@@ -119,7 +91,7 @@ func TestParseHandler_EmptyPath(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseRunner(ctrl)
+	svc := mocks.NewMockparseSubmitter(ctrl)
 
 	h := parseHandler(svc, discardLogger(), t.TempDir())
 
@@ -135,7 +107,7 @@ func TestParseHandler_PathOutsideDataDir(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseRunner(ctrl)
+	svc := mocks.NewMockparseSubmitter(ctrl)
 
 	h := parseHandler(svc, discardLogger(), t.TempDir())
 
