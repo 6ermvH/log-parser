@@ -123,6 +123,10 @@ func run() error {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 
+	if err := parseService.Shutdown(shutdownCtx); err != nil {
+		log.Warn("parse service shutdown timed out", "err", err)
+	}
+
 	log.Info("stopped")
 
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,29 +26,55 @@ type ParseService struct {
 	parser logParser
 	repo   parseRepo
 	log    *slog.Logger
+	wg     sync.WaitGroup
 }
 
 func NewParseService(p logParser, r parseRepo, log *slog.Logger) *ParseService {
 	return &ParseService{parser: p, repo: r, log: log}
 }
 
-type ParseResult struct {
-	LogID    uuid.UUID
-	ParseErr error
-}
-
-func (s *ParseService) Run(ctx context.Context, path string) (ParseResult, error) {
+func (s *ParseService) Submit(ctx context.Context, path string) (uuid.UUID, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
-		return ParseResult{}, fmt.Errorf("generate uuid: %w", err)
+		return uuid.Nil, fmt.Errorf("generate uuid: %w", err)
 	}
 
 	if iErr := s.repo.InsertProcessingLog(ctx, id); iErr != nil {
 		s.log.Error("insert processing log failed", "log_id", id, "err", iErr)
 
-		return ParseResult{}, fmt.Errorf("insert processing: %w", iErr)
+		return uuid.Nil, fmt.Errorf("insert processing: %w", iErr)
 	}
 
+	bgCtx := context.WithoutCancel(ctx)
+
+	s.wg.Add(1)
+
+	go func() {
+		defer s.wg.Done()
+
+		s.process(bgCtx, id, path)
+	}()
+
+	return id, nil
+}
+
+func (s *ParseService) Shutdown(ctx context.Context) error {
+	done := make(chan struct{})
+
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("parse service shutdown: %w", ctx.Err())
+	}
+}
+
+func (s *ParseService) process(ctx context.Context, id uuid.UUID, path string) {
 	parseStart := time.Now()
 	dlog, parseErr := s.parser.Parse(path)
 	parseDuration := time.Since(parseStart)
@@ -64,7 +91,7 @@ func (s *ParseService) Run(ctx context.Context, path string) (ParseResult, error
 			s.log.Error("mark log failed", "log_id", id, "err", mErr)
 		}
 
-		return ParseResult{LogID: id, ParseErr: parseErr}, nil
+		return
 	}
 
 	saveStart := time.Now()
@@ -82,7 +109,7 @@ func (s *ParseService) Run(ctx context.Context, path string) (ParseResult, error
 			s.log.Error("mark log failed after save error", "log_id", id, "err", mErr)
 		}
 
-		return ParseResult{}, fmt.Errorf("save: %w", sErr)
+		return
 	}
 
 	s.log.Info("log parsed",
@@ -94,8 +121,6 @@ func (s *ParseService) Run(ctx context.Context, path string) (ParseResult, error
 		"ports_count", countPorts(dlog.Nodes),
 		"connections_count", len(dlog.Connections),
 	)
-
-	return ParseResult{LogID: id}, nil
 }
 
 func countPorts(nodes []domain.Node) int {

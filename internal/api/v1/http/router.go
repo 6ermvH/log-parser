@@ -6,7 +6,7 @@ import (
 )
 
 type Dependencies struct {
-	ParseService parseRunner
+	ParseService parseSubmitter
 	QueryService Services
 	Pool         healthChecker
 	Logger       *slog.Logger
