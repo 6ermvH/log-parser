@@ -27,10 +27,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-logparser}:${POSTGRES_PASSWORD:-logparser}@db:5432/${POSTGRES_DB:-logparser}?sslmode=disable
       PORT: ${PORT:-8080}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATA_DIR: /app/data
     ports:
       - "${PORT:-8080}:8080"
     volumes:
-      - ./data:/app/data
+      - ${DATA_DIR:-./data}:/app/data
     depends_on:
       db:
         condition: service_healthy
