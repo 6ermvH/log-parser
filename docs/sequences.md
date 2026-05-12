@@ -115,12 +115,7 @@ sequenceDiagram
         DB-->>R: ports[]
         R-->>H: ports[]
 
-        H->>R: ListConnections(log_id)
-        R->>DB: select connections for log
-        DB-->>R: edges[]
-        R-->>H: edges[]
-
-        H-->>C: 200 {nodes, ports, edges}
+        H-->>C: 200 {nodes, ports}
     end
 ```
 
