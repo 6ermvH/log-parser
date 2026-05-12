@@ -34,6 +34,18 @@ type topologyResponse struct {
 	Edges []topologyEdge `json:"edges"`
 }
 
+// topologyHandler returns the full topology of a log.
+//
+//	@Summary		Get topology
+//	@Description	Returns nodes, ports and connections (edges) for the given log.
+//	@Tags			topology
+//	@Produce		json
+//	@Param			log_id	path		string	true	"Log UUID"
+//	@Success		200		{object}	topologyResponse
+//	@Failure		400		{object}	errorResponse
+//	@Failure		404		{object}	errorResponse
+//	@Failure		500		{object}	errorResponse
+//	@Router			/api/v1/topology/{log_id} [get]
 func topologyHandler(q topologyQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logID, err := uuid.Parse(r.PathValue("log_id"))

@@ -31,6 +31,18 @@ type portsResponse struct {
 	Ports []portResponse `json:"ports"`
 }
 
+// portsHandler returns all ports of a node.
+//
+//	@Summary		List node ports
+//	@Description	Returns the list of ports for the given node, ordered by port number.
+//	@Tags			port
+//	@Produce		json
+//	@Param			node_id	path		integer	true	"Node id"
+//	@Success		200		{object}	portsResponse
+//	@Failure		400		{object}	errorResponse
+//	@Failure		404		{object}	errorResponse
+//	@Failure		500		{object}	errorResponse
+//	@Router			/api/v1/port/{node_id} [get]
 func portsHandler(q portsQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		nodeID, err := strconv.ParseInt(r.PathValue("node_id"), 10, 64)

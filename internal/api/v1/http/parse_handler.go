@@ -24,6 +24,19 @@ type parseResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
+// parseHandler runs the parse pipeline.
+//
+//	@Summary		Parse a log archive
+//	@Description	Opens the zip archive (path relative to data/), parses InfiniBand topology and saves it.
+//	@Tags			parse
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		parseRequest	true	"Path to log archive (relative to data/)"
+//	@Success		201		{object}	parseResponse	"log_id of the successfully parsed log"
+//	@Failure		400		{object}	parseResponse	"parse error — log_id present, error contains parser message"
+//	@Failure		400		{object}	errorResponse	"validation error (bad body, empty path, path outside data/)"
+//	@Failure		500		{object}	errorResponse	"internal error"
+//	@Router			/api/v1/parse [post]
 func parseHandler(svc parseRunner, log *slog.Logger, dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req parseRequest
