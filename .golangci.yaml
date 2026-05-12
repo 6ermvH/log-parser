@@ -76,7 +76,7 @@ formatters:
       simplify: true
     goimports:
       local-prefixes:
-        - log-parser
+        - github.com/6ermvH/log-parser
 
 issues:
   max-issues-per-linter: 0
