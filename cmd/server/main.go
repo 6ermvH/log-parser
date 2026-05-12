@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/6ermvH/log-parser/internal/config"
 	"github.com/6ermvH/log-parser/internal/logger"
 	"github.com/6ermvH/log-parser/internal/parser"
+	"github.com/6ermvH/log-parser/internal/reaper"
 	"github.com/6ermvH/log-parser/internal/service"
 	"github.com/6ermvH/log-parser/internal/storage/migrate"
 	"github.com/6ermvH/log-parser/internal/storage/postgres"
@@ -61,6 +63,21 @@ func run() error {
 	parserSvc := parser.New()
 	parseService := service.NewParseService(parserSvc, repo, log)
 	queryService := service.NewQueryService(repo)
+	reaperInst := reaper.New(repo, cfg.Reaper.Tick, cfg.Reaper.Timeout, log)
+
+	reaperCtx, stopReaper := context.WithCancel(context.Background())
+
+	var reaperWG sync.WaitGroup
+	reaperWG.Add(1)
+
+	defer reaperWG.Wait()
+	defer stopReaper()
+
+	go func() {
+		defer reaperWG.Done()
+
+		reaperInst.Run(reaperCtx)
+	}()
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
 		ParseService: parseService,
