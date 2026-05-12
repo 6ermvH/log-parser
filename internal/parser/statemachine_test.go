@@ -81,3 +81,70 @@ func TestSectionMachine_MalformedCSVPropagates(t *testing.T) {
 
 	require.Error(t, sm.Run(strings.NewReader(input)))
 }
+
+func TestSectionMachine_UnclosedSectionAtEOF(t *testing.T) {
+	t.Parallel()
+
+	input := strings.Join([]string{
+		"START_NODES",
+		"NodeDesc,NodeType,NodeGUID",
+		`"HOST_1",1,0xhost1`,
+	}, "\n")
+
+	sm := newSectionMachine(func(_ sectionEvent) {})
+
+	err := sm.Run(strings.NewReader(input))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unclosed")
+	assert.Contains(t, err.Error(), "NODES")
+}
+
+func TestSectionMachine_TruncatedEndMarker(t *testing.T) {
+	t.Parallel()
+
+	input := strings.Join([]string{
+		"START_NODES",
+		"NodeDesc,NodeType,NodeGUID",
+		`"HOST_1",1,0xhost1`,
+		"END_NOD",
+	}, "\n")
+
+	sm := newSectionMachine(func(_ sectionEvent) {})
+
+	err := sm.Run(strings.NewReader(input))
+	require.Error(t, err)
+}
+
+func TestSectionMachine_RowFewerColumns(t *testing.T) {
+	t.Parallel()
+
+	input := strings.Join([]string{
+		"START_NODES",
+		"NodeDesc,NodeType,NodeGUID",
+		`"SWITCH_2",2`,
+		"END_NODES",
+	}, "\n")
+
+	sm := newSectionMachine(func(_ sectionEvent) {})
+
+	err := sm.Run(strings.NewReader(input))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "column count mismatch")
+}
+
+func TestSectionMachine_RowMoreColumns(t *testing.T) {
+	t.Parallel()
+
+	input := strings.Join([]string{
+		"START_NODES",
+		"NodeDesc,NodeType,NodeGUID",
+		`"SWITCH_2",2,0xswitch2,extra`,
+		"END_NODES",
+	}, "\n")
+
+	sm := newSectionMachine(func(_ sectionEvent) {})
+
+	err := sm.Run(strings.NewReader(input))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "column count mismatch")
+}
