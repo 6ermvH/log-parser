@@ -33,6 +33,8 @@ linters:
       check-blank: true
     govet:
       enable-all: true
+      disable:
+        - fieldalignment
     gocyclo:
       min-complexity: 15
     revive:
