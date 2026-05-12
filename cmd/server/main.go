@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
+	httpapi "github.com/6ermvH/log-parser/internal/api/http"
 	"github.com/6ermvH/log-parser/internal/config"
 	"github.com/6ermvH/log-parser/internal/logger"
+	"github.com/6ermvH/log-parser/internal/parser"
+	"github.com/6ermvH/log-parser/internal/service"
 	"github.com/6ermvH/log-parser/internal/storage/migrate"
 	"github.com/6ermvH/log-parser/internal/storage/postgres"
 	"github.com/6ermvH/log-parser/migrations"
@@ -23,7 +23,6 @@ import (
 const (
 	readHeaderTimeout = 5 * time.Second
 	shutdownTimeout   = 10 * time.Second
-	healthPingTimeout = 2 * time.Second
 )
 
 func main() {
@@ -58,12 +57,22 @@ func run() error {
 
 	log.Info("db connected")
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", healthHandler(pool, log))
+	repo := postgres.NewRepository(pool)
+	parserSvc := parser.New()
+	parseService := service.NewParseService(parserSvc, repo, log)
+	queryService := service.NewQueryService(repo)
+
+	handler := httpapi.NewRouter(httpapi.Dependencies{
+		ParseService: parseService,
+		QueryService: queryService,
+		Pool:         pool,
+		Logger:       log,
+		DataDir:      cfg.DataDir,
+	})
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
@@ -97,28 +106,4 @@ func run() error {
 	log.Info("stopped")
 
 	return nil
-}
-
-func healthHandler(pool *pgxpool.Pool, log *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), healthPingTimeout)
-		defer cancel()
-
-		w.Header().Set("Content-Type", "application/json")
-
-		if err := pool.Ping(ctx); err != nil {
-			log.Warn("health db ping failed", "err", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
-
-			if _, werr := w.Write([]byte(`{"status":"unhealthy"}`)); werr != nil {
-				log.Error("write health response", "err", werr)
-			}
-
-			return
-		}
-
-		if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
-			log.Error("write health response", "err", err)
-		}
-	}
 }
