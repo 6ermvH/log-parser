@@ -25,6 +25,18 @@ type logResponse struct {
 	Error      string    `json:"error,omitempty"`
 }
 
+// logMetaHandler returns log meta information.
+//
+//	@Summary		Get log meta
+//	@Description	Returns log status, upload time, nodes/ports counts and optional error.
+//	@Tags			log
+//	@Produce		json
+//	@Param			log_id	path		string	true	"Log UUID"
+//	@Success		200		{object}	logResponse
+//	@Failure		400		{object}	errorResponse
+//	@Failure		404		{object}	errorResponse
+//	@Failure		500		{object}	errorResponse
+//	@Router			/api/v1/log/{log_id} [get]
 func logMetaHandler(q logMetaQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(r.PathValue("log_id"))

@@ -27,6 +27,18 @@ type nodeResponse struct {
 	SharpInfo       map[string]string `json:"sharp_info,omitempty"`
 }
 
+// nodeHandler returns full details for one node.
+//
+//	@Summary		Get node details
+//	@Description	Returns node attributes and optional info blocks (switch_info / system_info / sharp_info).
+//	@Tags			node
+//	@Produce		json
+//	@Param			node_id	path		integer	true	"Node id"
+//	@Success		200		{object}	nodeResponse
+//	@Failure		400		{object}	errorResponse
+//	@Failure		404		{object}	errorResponse
+//	@Failure		500		{object}	errorResponse
+//	@Router			/api/v1/node/{node_id} [get]
 func nodeHandler(q nodeQuery, log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("node_id"), 10, 64)
