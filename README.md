@@ -4,9 +4,9 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/6ermvH/log-parser)](https://github.com/6ermvH/log-parser/blob/main/go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/6ermvH/log-parser)](https://goreportcard.com/report/github.com/6ermvH/log-parser)
 
-Тестовое задание на стажировку в **YADRO**, команда прикладной разработки.
+Тестовое задание на стажировку в YADRO, команда прикладной разработки.
 
-Микросервис на Go, который принимает архивы диагностики `ibdiagnet2`, разбирает секционный CSV, агрегирует топологию InfiniBand (узлы / порты / связи) и сохраняет результат в PostgreSQL. Наружу доступен REST API.
+Микросервис на Go: принимает архивы диагностики `ibdiagnet2`, разбирает секционный CSV, собирает из него топологию InfiniBand (узлы и порты) и кладёт всё это в PostgreSQL. Наружу торчит REST API.
 
 ## Запуск
 
@@ -15,9 +15,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Сервис стартует на `http://localhost:8080`. При первом запуске накатываются миграции на свежую БД.
+Сервис поднимется на `http://localhost:8080`. На первом запуске сам накатит миграции на пустую БД.
 
-Положите архив в `data/` (папка смонтирована в контейнер как `/app/data`) и запустите парсинг:
+Дальше кладёте архив в `data/` (эта папка монтируется в контейнер как `/app/data`) и отправляете на парсинг:
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/parse \
@@ -25,120 +25,125 @@ curl -X POST http://localhost:8080/api/v1/parse \
   -d '{"path":"log.zip"}'
 ```
 
-В ответ придёт `log_id` (202 Accepted), статус разбора смотрите через `GET /api/v1/log/{log_id}`.
+В ответ прилетит `log_id` со статусом 202 Accepted. Сам разбор идёт в фоне, статус можно тянуть через `GET /api/v1/log/{log_id}`. Если файла нет или это не zip, сервис ответит 400 сразу, без `log_id` и без записи в БД.
 
 ## Конфигурация
 
+Через ENV задаются вещи, которые меняются от окружения к окружению (DSN, секреты, порт). YAML это уже про тюнинг внутренней логики.
+
 | Источник | Параметр         | Назначение                                                 |
 | -------- | ---------------- | ---------------------------------------------------------- |
-| ENV      | `DATABASE_URL`   | строка подключения к Postgres (обязательно)                |
-| ENV      | `PORT`           | порт HTTP-сервера (default `8080`)                         |
-| ENV      | `LOG_LEVEL`      | `debug` / `info` / `warn` / `error`                        |
-| ENV      | `DATA_DIR`       | путь к папке с архивами (default `./data`)                 |
-| ENV      | `CONFIG_PATH`    | путь к YAML (default `./configs/config.yaml`)              |
-| YAML     | `reaper.tick`    | период проверки зависших `processing` (default `30s`)      |
-| YAML     | `reaper.timeout` | максимально допустимое время в `processing` (default `5m`) |
-
-ENV, (DSN, секреты). YAML — для тюнинга в коде.
+| ENV      | `DATABASE_URL`   | строка подключения к Postgres, обязательно                 |
+| ENV      | `PORT`           | порт HTTP-сервера, по умолчанию `8080`                     |
+| ENV      | `LOG_LEVEL`      | `debug`, `info`, `warn` или `error`                        |
+| ENV      | `DATA_DIR`       | путь к папке с архивами, по умолчанию `./data`             |
+| ENV      | `CONFIG_PATH`    | путь к YAML, по умолчанию `./configs/config.yaml`          |
+| YAML     | `reaper.tick`    | период проверки зависших `processing`, по умолчанию `30s`  |
+| YAML     | `reaper.timeout` | сколько лог может висеть в `processing`, по умолчанию `5m` |
 
 ## Архитектура
 
-Слоистая, с разделением transport / business / data:
+Стандартная слоёная: transport, business, data.
 
-- `cmd/server` — entry point, lifecycle (миграции на старте, graceful shutdown, фоновый reaper).
-- `internal/api/v1/http` — HTTP transport: router, handlers, middleware, response/error JSON.
-- `internal/service` — бизнес-логика: `ParseService` оркестрирует POST `/parse`, `QueryService` собирает ответы для GET-эндпоинтов.
-- `internal/parser` — парсер логов: stream через state machine + aggregator.
-- `internal/storage/postgres` — репозиторий поверх `pgxpool`, транзакционная запись `domain.Log`.
-- `internal/storage/migrate` — runner поверх `golang-migrate` с `embed.FS`.
-- `internal/reaper` — фоновая горутина-ETL, следит за зависшими `processing`-логами.
-- `internal/domain` — доменные типы.
-- `internal/config`, `internal/logger` — ENV + YAML конфиг, структурный slog в stdout.
+- `cmd/server` это entry point. На старте: миграции, регистрация хендлеров, запуск reaper в горутине, graceful shutdown по сигналу.
+- `internal/api/v1/http` это HTTP-слой: роутер, хендлеры, middleware, JSON-ответы.
+- `internal/service` это бизнес-логика. `ParseService` оркестрирует `POST /parse`, `QueryService` собирает ответы для всех GET-эндпоинтов.
+- `internal/parser` это сам парсер логов: стрим через state machine плюс aggregator поверх.
+- `internal/storage/postgres` это репозиторий поверх `pgxpool`, транзакционная запись доменной модели.
+- `internal/storage/migrate` это runner для `golang-migrate` с миграциями через `embed.FS`.
+- `internal/reaper` это фоновая горутина-ETL, чистит зависшие `processing`-логи.
+- `internal/domain` это доменные типы.
+- `internal/config` и `internal/logger` это ENV+YAML конфиг и структурный slog в stdout.
 
-Подробная компонентная схема (C4 level 3) — [docs/c3-components.md](docs/c3-components.md).
+Компонентная схема (C4 level 3) лежит в [docs/c3-components.md](docs/c3-components.md).
 
 ## API
 
-| Метод | Путь | Назначение |
-|---|---|---|
-| `POST` | `/api/v1/parse` | Принимает архив на парсинг асинхронно: возвращает `log_id` сразу, парсинг идёт в фоне |
-| `GET` | `/api/v1/log/{log_id}` | Текущий `status` (`processing` / `ok` / `failed`), счётчики, текст ошибки |
-| `GET` | `/api/v1/topology/{log_id}` | Узлы, порты и связи лога |
-| `GET` | `/api/v1/node/{node_id}` | Детали узла + расширенная информация (switch/system/sharp) |
-| `GET` | `/api/v1/port/{node_id}` | Список портов узла |
-| `GET` | `/health` | Liveness, включая ping БД |
+| Метод  | Путь                        | Что делает                                                                       |
+| ------ | --------------------------- | -------------------------------------------------------------------------------- |
+| `POST` | `/api/v1/parse`             | ставит архив в очередь на парсинг, возвращает `log_id` (202) или 400, если файла нет или это не zip |
+| `GET`  | `/api/v1/log/{log_id}`      | текущий статус (`processing`, `ok`, `failed`), счётчики, текст ошибки            |
+| `GET`  | `/api/v1/topology/{log_id}` | узлы и порты лога                                                                |
+| `GET`  | `/api/v1/node/{node_id}`    | детали узла плюс расширенные блоки (`switch_info`, `system_info`, `sharp_info`)  |
+| `GET`  | `/api/v1/port/{node_id}`    | список портов узла                                                               |
+| `GET`  | `/health`                   | liveness, ходит в БД                                                             |
 
-**Async flow**: `POST /parse` сразу отвечает `202 Accepted` с `log_id` — фактический парсинг живёт в горутине. Клиент поллит `GET /log/{log_id}` до перехода `status` из `processing` в `ok` / `failed`. Если приложение упало посреди парсинга, [reaper](#допущения-и-ограничения) переводит зависшие записи в `failed` по таймауту.
+`POST /parse` сначала делает preflight: проверяет, что путь корректный, файл существует и открывается как zip. Если что-то не так, возвращает 400 и на этом всё, ничего не пишется в БД. Если preflight прошёл, в `logs` создаётся запись со статусом `processing`, клиент получает её `log_id` и 202 Accepted, а сам разбор уходит в горутину. Дальше клиент поллит `GET /log/{log_id}` пока статус не съедет с `processing` на `ok` или `failed`. Если приложение упало посреди парсинга, reaper потом переведёт зависшую запись в `failed` по таймауту (см. раздел про допущения).
 
-Поэтапные потоки каждого эндпоинта (включая фоновую горутину парсера и reaper) — в [docs/sequences.md](docs/sequences.md).
+Sequence-диаграммы по каждому эндпоинту, включая фоновую горутину парсера и reaper, лежат в [docs/sequences.md](docs/sequences.md).
 
-**Postman-коллекция** автоматически генерируется из OpenAPI-спеки и лежит в [docs/postman_collection.json](docs/postman_collection.json) - импортируйте в Postman одним кликом, переменная `{{baseUrl}}` уже выставлена на `http://localhost:8080`. OpenAPI 3.1 спека: [docs/openapi/openapi.json](docs/openapi/openapi.json).
+Postman-коллекция автоматически генерируется из OpenAPI и лежит в [docs/postman_collection.json](docs/postman_collection.json). Импортируется в Postman одним кликом, переменная `{{baseUrl}}` уже выставлена на `http://localhost:8080`. Сама OpenAPI 3.1 спека: [docs/openapi/openapi.json](docs/openapi/openapi.json).
 
 ## База данных
 
-Пять таблиц с FK и `ON DELETE CASCADE` от корневой `logs`:
+Пять таблиц, всё привязано к корневой `logs` через FK с `ON DELETE CASCADE`:
 
-- `logs` — снапшот загрузки
-- `failed_logs` — детали ошибок парсинга (1:1 с `logs`)
-- `nodes` — узлы фабрики (host / switch / router / unknown)
-- `ports` — порты узлов
-- `nodes_info` — расширенные блоки (`switch_info`, `system_info`, `sharp_info`) как JSONB
+- `logs`: снапшот загрузки.
+- `failed_logs`: детали ошибок парсинга, связаны 1:1 с `logs`.
+- `nodes`: узлы фабрики (host, switch, router, unknown).
+- `ports`: порты узлов.
+- `nodes_info`: расширенные блоки (`switch_info`, `system_info`, `sharp_info`) в JSONB.
 
-Полная диаграмма связей с кардинальностями — [docs/erd.md](docs/erd.md).
+Полная ERD с кардинальностями: [docs/erd.md](docs/erd.md).
 
-Схема создаётся и эволюционирует через **golang-migrate** с `//go:embed migrations/*.sql`. Файлы миграций живут в `migrations/`, применяются автоматически при старте приложения (`internal/storage/migrate`), CI не требует отдельного шага накатки.
+Схему ведёт `golang-migrate` с `//go:embed migrations/*.sql`. Файлы миграций лежат в `migrations/` и применяются автоматически на старте приложения, отдельного шага накатки в CI нет.
 
 ## Парсер
 
-Парсер собран из двух независимых слоёв, чтобы изменять формат отдельно от доменной логики:
+Внутри два независимых слоя, чтобы можно было трогать формат отдельно от доменной модели:
 
-- **State machine** (`internal/parser/statemachine.go`) — стрим построчно, состояния `Outside / Header / Body`. Знает только про секционный CSV-формат `START_X / header / data / END_X`, эмитит события `(section, columns, row)` через callback. Не знает про InfiniBand.
-- **Aggregator** (`internal/parser/aggregator.go`) — принимает события, маппит CSV-строки в доменную модель `Log → Node → Port` + `NodeInfo`. Не знает про zip и стрим.
+- State machine (`internal/parser/statemachine.go`) идёт построчно. Состояния: `Outside`, `Header`, `Body`. Знает только про секционный CSV-формат `START_X / header / data / END_X`, эмитит события `(section, columns, row)` через callback. Про InfiniBand ничего не знает.
+- Aggregator (`internal/parser/aggregator.go`) берёт эти события и складывает CSV-строки в доменную модель: `Log`, внутри `Node`, у `Node` есть `Port` и `NodeInfo`. Про zip и стрим ничего не знает.
 
-Парсер строгий: отказывает в файле целиком при любом из двух нарушений (см. раздел про допущения).
+Парсер строгий: на любом нарушении формата валит весь файл целиком (про сами проверки в разделе допущений).
 
 ## Тестирование
 
-Покрытие по слоям, замеряется `go test -cover`
-Все логические пакеты держат покрытие **≥ 70%** (правило проекта)
+Покрытие меряется через `go test -cover`. Все пакеты с логикой держат покрытие не меньше 70%, это правило проекта.
 
 ```bash
 go test ./...                                    # unit
-go test -tags integration -timeout 5m ./...      # integration (нужен Docker)
-go test -tags e2e -timeout 5m ./tests/e2e/...    # e2e (нужен Docker)
+go test -tags integration -timeout 5m ./...      # integration, нужен Docker
+go test -tags e2e -timeout 5m ./tests/e2e/...    # e2e, нужен Docker
 go generate ./...                                # перегенерация моков (gomock)
 golangci-lint run ./...                          # линт
 ```
 
-Build-tag разделение: unit `//go:build !integration`, integration `//go:build integration`, e2e `//go:build e2e`. В CI три отдельных job-а.
+Build-tag-и: unit под `//go:build !integration`, integration под `//go:build integration`, e2e под `//go:build e2e`. В CI это три отдельных job-а.
 
 ## Про физическую топологию (LINKS)
 
-Физических связей port↔port в `ibdiagnet2.db_csv` **нет** — секция с разбором кабельной топологии в этом файле не выводится. По официальной документации NVIDIA информация о соединениях лежит в **других артефактах** `ibdiagnet2`: `ibdiagnet2.net_dump`, `ibdiagnet2.lst`, `ibdiagnet2.ibnetdiscover`. Их формат — не CSV, а табличный текст в духе `ibnetdiscover`, со своим набором правил парсинга.
+Физических связей между портами в `ibdiagnet2.db_csv` нет, секции с кабельной топологией в этом файле просто не выводится. По официальной документации NVIDIA информация о соединениях лежит в других артефактах `ibdiagnet2`: `ibdiagnet2.net_dump`, `ibdiagnet2.lst`, `ibdiagnet2.ibnetdiscover`. Формат там не CSV, а табличный текст в духе `ibnetdiscover`, со своими правилами разбора.
 
-Поэтому в текущей реализации `GET /api/v1/topology` возвращает только `nodes` и `ports` — узлы фабрики и их порты с метаданными (`state`, `phy_state`, `link_speed_actv`, `link_width_actv`, `lid`, `port_guid`). Этого достаточно, чтобы построить «список железа», но не достаточно, чтобы нарисовать кабельный граф.
+Из-за этого `GET /api/v1/topology` сейчас возвращает только `nodes` и `ports`: узлы и их порты с метаданными (`state`, `phy_state`, `link_speed_actv`, `link_width_actv`, `lid`, `port_guid`). Этого хватает для «списка железа», но не хватает на кабельный граф.
 
-Чтобы добавить рёбра, нужно: подключить к парсеру один из `net_dump`/`lst`/`ibnetdiscover`, написать под него отдельный парсер (state machine из `internal/parser` сюда не подходит — формат другой), завести таблицу `connections (port_a_id, port_b_id)` и вернуть рёбра в ответ `/topology`. В рамках текущего задания это намеренно не делалось — на вход поступает только `db_csv`.
+Чтобы добавить рёбра, надо подключить к парсеру один из `net_dump`, `lst` или `ibnetdiscover`, написать под него отдельный парсер (state machine из `internal/parser` тут не подойдёт, формат другой), завести таблицу `connections (port_a_id, port_b_id)` и отдавать рёбра в ответ `/topology`. В рамках текущего задания этого делать не стал, на вход приходит только `db_csv`.
 
 ## Допущения и ограничения
 
-- **Аутентификации нет.** Это тестовое задание, выставлять API наружу не предполагается. В реальном сервисе сюда добавили бы middleware с JWT / API-ключом.
-- **Reaper работает в одном инстансе.** Фоновый ETL, помечающий зависшие `processing`-логи как `failed`, не координируется между несколькими копиями приложения. Для multi-instance потребовался бы `pg_try_advisory_lock` или внешний шедулер.
-- **Ошибки парсинга нигде не теряются.** На каждой ошибке:
-  1. Запись логируется в **stdout** структурным slog (`level=WARN`, `err=…`, `parse_duration_ms=…`).
-  2. Возвращается клиенту в теле ответа POST `/parse` вместе с `log_id`.
-  3. Сохраняется в БД в `failed_logs(log_id, error_message)` со статусом лога `failed` — для последующего анализа.
-- **Reaper (ETL для зависших логов).** Если приложение упало посреди парсинга или клиент оборвал запрос — запись в `logs` остаётся в состоянии `processing` навсегда. Reaper раз в `reaper.tick` (default `30s`) ищет такие записи и переводит в `failed`, если они «висят» дольше `reaper.timeout` (default `5m`).
-- **Жёсткая валидация формата CSV — две проверки в state machine:**
-  1. Кол-во полей строки должно совпадать с кол-вом колонок заголовка секции.
-  2. Каждая открытая `START_X` секция должна быть закрыта парным `END_X`; иначе ошибка на EOF.
+Аутентификации нет. Это тестовое задание, выставлять API наружу не предполагается. В реальном сервисе тут стояло бы middleware с JWT или API-ключом.
 
-  На практике второе условие почти всегда падает через первое (битый или обрезанный `END_X` парсится как 1-токеновая «строка» и валится column count mismatch). EOF-проверка ловит только редкий кейс — все данные валидные, но файл просто обрывается без `END_X`.
-- **Хранение полей `ports`.** В колонках лежат только наиболее используемые признаки (`port_state`, `port_phy_state`, `link_speed_actv`, `link_width_actv`, `lid`, `guid`). Остальные ~47 полей секции PORTS сохраняются как `raw JSONB` — это даёт гибкость без потери данных. Перенести что-то из JSONB в типизированную колонку — миграция в одну строку.
-- **`sharp_an_info` не валидируется.** Файл с key=value блоками просто парсится в `map[string]string` и кладётся в `nodes_info.sharp_info`. Никаких проверок на значения (`endianness`, флаги SHARP) не делается — это конфиг, и его семантика выходит за рамки задания.
-- **Postman-коллекция генерируется частично автоматически.** Источник правды — аннотации `swag` в коде. По команде `make openapi` поднимается OpenAPI 3.1 спека, по `make postman` — Postman v2.1 collection из неё. `make docs` запускает обе цели подряд. Для Postman нужен только Node.js (через `npx`), Docker не требуется.
-- **Интеграционные и e2e-тесты используют `testcontainers-go`.** Поднимают реальный Postgres в Docker, накатывают миграции, прогоняют тесты на живой БД. В e2e дополнительно поднимается HTTP-сервер через `httptest` поверх настоящего router'а и реальных зависимостей.
-- **State machine вынесена в отдельный модуль.** Чистая FSM с состояниями `Outside / Header / Body` живёт независимо от агрегатора и не знает про InfiniBand. Если завтра формат входа поменяется (JSON-lines, проприетарный бинарь) — заменяется только парсер, доменный слой не трогается.
+Reaper работает в одном инстансе. Фоновый ETL, который чистит зависшие `processing`-логи, не координируется между копиями приложения. Для multi-instance понадобился бы `pg_try_advisory_lock` или внешний шедулер.
+
+Ошибки разделены на два канала. Если файл просто не нашёлся или это не zip, это ловит preflight и возвращает 400 синхронно, без `log_id` и без записи в БД (клиент видит ошибку сразу, типичный кейс с опечаткой в пути). Если же файл был открыт и парсинг начался, но в процессе всё сломалось (битый CSV, незакрытая секция, ошибка записи в БД), это уже асинхронный канал: запись лога переводится в `failed`, в stdout уходит структурная запись slog (`level=WARN`, `err=...`, `parse_duration_ms=...`), а в `failed_logs(log_id, error_message)` сохраняется текст ошибки для последующего разбора.
+
+Reaper нужен на случай, если приложение упало посреди парсинга или клиент оборвал запрос. Запись в `logs` остаётся в `processing` навсегда, и reaper раз в `reaper.tick` (по умолчанию `30s`) ищет такие и переводит в `failed`, если они висят дольше `reaper.timeout` (по умолчанию `1m`).
+
+Валидация формата CSV в state machine жёсткая, всего две проверки:
+1. Количество полей в строке должно совпадать с количеством колонок в заголовке секции.
+2. Каждая открытая `START_X` секция должна быть закрыта парным `END_X`, иначе ошибка на EOF.
+
+На практике вторая проверка почти всегда падает через первую: битый или обрезанный `END_X` парсится как однотокеновая строка и валится на column count mismatch. EOF-проверка ловит только редкий случай, когда все данные валидные, а файл просто обрывается без `END_X`.
+
+Поля портов сохраняются избирательно. В колонках лежат только самые ходовые признаки: `port_state`, `port_phy_state`, `link_speed_actv`, `link_width_actv`, `lid`, `guid`. Остальные примерно 47 полей секции PORTS пишутся в `raw JSONB`. Это даёт гибкость без потери данных: если завтра что-то из JSONB понадобится в типизированном виде, перенос делается миграцией в одну строку.
+
+`sharp_an_info` не валидируется. Файл с key=value блоками просто парсится в `map[string]string` и кладётся в `nodes_info.sharp_info`. Никаких проверок на значения (`endianness`, флаги SHARP) не делается, это конфиг, и его семантика выходит за рамки задания.
+
+Postman-коллекция собирается полуавтоматически. Источник правды это аннотации `swag` в коде. `make openapi` собирает OpenAPI 3.1 спеку, `make postman` собирает Postman v2.1 collection из неё, `make docs` запускает обе цели подряд. Для Postman нужен только Node.js (через `npx`), Docker для этого не нужен.
+
+Integration и e2e тесты крутятся через `testcontainers-go`. Поднимается реальный Postgres в Docker, накатываются миграции, тесты гоняются на живой БД. В e2e дополнительно поднимается HTTP-сервер через `httptest` поверх настоящего роутера и реальных зависимостей.
+
+State machine вынесена в отдельный модуль. Чистая FSM с состояниями `Outside`, `Header`, `Body` живёт независимо от агрегатора и про InfiniBand не знает. Если завтра формат входа поменяется (JSON-lines, проприетарный бинарь), заменится только парсер, доменный слой не поедет.
 
 ## Структура проекта
 
