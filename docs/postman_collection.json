@@ -17,7 +17,7 @@
                                     "description": "",
                                     "item": [
                                         {
-                                            "id": "748bfbc2-96d9-4a27-809a-96aa2a70d2fb",
+                                            "id": "b59772e0-68b0-47fa-9187-2326f5850f56",
                                             "name": "Get log meta",
                                             "request": {
                                                 "name": "Get log meta",
@@ -61,7 +61,7 @@
                                             },
                                             "response": [
                                                 {
-                                                    "id": "f656c044-6663-41bb-a306-d2f6785ceda4",
+                                                    "id": "819023ab-09e3-4bc0-8b42-ae2ab478c3d1",
                                                     "name": "OK",
                                                     "originalRequest": {
                                                         "url": {
@@ -110,7 +110,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "7df9d336-2cff-43c4-947a-cd989e2c7989",
+                                                    "id": "d5abb928-4471-4d1e-b9cd-8c53bfe69915",
                                                     "name": "Bad Request",
                                                     "originalRequest": {
                                                         "url": {
@@ -159,7 +159,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "4bd062ed-911e-4717-9898-a025e3723d5c",
+                                                    "id": "2c1f7f25-7b03-433a-8728-724f896f3564",
                                                     "name": "Not Found",
                                                     "originalRequest": {
                                                         "url": {
@@ -208,7 +208,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "343eda93-772a-4c96-8933-1c03639592fe",
+                                                    "id": "bcf60127-860e-4748-ae4d-2e29f866bb3e",
                                                     "name": "Internal Server Error",
                                                     "originalRequest": {
                                                         "url": {
@@ -275,7 +275,7 @@
                                     "description": "",
                                     "item": [
                                         {
-                                            "id": "69d6e372-c717-4d88-915b-f87195eff52e",
+                                            "id": "ef5f338d-5fe8-4491-b116-9002e55e7c91",
                                             "name": "Get node details",
                                             "request": {
                                                 "name": "Get node details",
@@ -319,7 +319,7 @@
                                             },
                                             "response": [
                                                 {
-                                                    "id": "166ac17a-ac6c-4c43-b53b-2a9fd8a1bf3e",
+                                                    "id": "187ead4e-f914-4eee-86ba-634367a4201c",
                                                     "name": "OK",
                                                     "originalRequest": {
                                                         "url": {
@@ -363,12 +363,12 @@
                                                             "value": "application/json"
                                                         }
                                                     ],
-                                                    "body": "{\n  \"desc\": \"<string>\",\n  \"guid\": \"<string>\",\n  \"id\": \"<integer>\",\n  \"log_id\": \"<string>\",\n  \"port_guid\": \"<string>\",\n  \"sharp_info\": {\n    \"key_0\": \"<string>\",\n    \"key_1\": \"<string>\",\n    \"key_2\": \"<string>\",\n    \"key_3\": \"<string>\"\n  },\n  \"switch_info\": {\n    \"key_0\": \"<string>\"\n  },\n  \"system_image_guid\": \"<string>\",\n  \"system_info\": {\n    \"key_0\": \"<string>\",\n    \"key_1\": \"<string>\",\n    \"key_2\": \"<string>\"\n  },\n  \"type\": \"<string>\"\n}",
+                                                    "body": "{\n  \"desc\": \"<string>\",\n  \"guid\": \"<string>\",\n  \"id\": \"<integer>\",\n  \"log_id\": \"<string>\",\n  \"port_guid\": \"<string>\",\n  \"sharp_info\": {\n    \"key_0\": \"<string>\",\n    \"key_1\": \"<string>\",\n    \"key_2\": \"<string>\",\n    \"key_3\": \"<string>\",\n    \"key_4\": \"<string>\"\n  },\n  \"switch_info\": {\n    \"key_0\": \"<string>\",\n    \"key_1\": \"<string>\"\n  },\n  \"system_image_guid\": \"<string>\",\n  \"system_info\": {\n    \"key_0\": \"<string>\",\n    \"key_1\": \"<string>\",\n    \"key_2\": \"<string>\"\n  },\n  \"type\": \"<string>\"\n}",
                                                     "cookie": [],
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "fc3949c0-e63f-4751-8ae7-efcacd6ea4c8",
+                                                    "id": "f8ea9e6f-9ad3-4770-9724-cf50a36b4422",
                                                     "name": "Bad Request",
                                                     "originalRequest": {
                                                         "url": {
@@ -417,7 +417,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "3c3eca06-4a7a-434a-9d7b-53bcd74240ee",
+                                                    "id": "6e812176-591c-4939-8c00-f15216abf84c",
                                                     "name": "Not Found",
                                                     "originalRequest": {
                                                         "url": {
@@ -466,7 +466,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "bf62e7bf-1b0c-4550-af26-a2af8013f4d3",
+                                                    "id": "3a0cdd04-9c2d-4c42-af6a-80d12ae7cf82",
                                                     "name": "Internal Server Error",
                                                     "originalRequest": {
                                                         "url": {
@@ -529,12 +529,12 @@
                             "description": "",
                             "item": [
                                 {
-                                    "id": "edaab784-26d3-4c50-b95a-fa9e045de8ee",
-                                    "name": "Parse a log archive",
+                                    "id": "50c11bfa-fc1d-4d1f-9787-5fdf6c1cd2ba",
+                                    "name": "Submit a log archive for parsing",
                                     "request": {
-                                        "name": "Parse a log archive",
+                                        "name": "Submit a log archive for parsing",
                                         "description": {
-                                            "content": "Opens the zip archive (path relative to data/), parses InfiniBand topology and saves it.",
+                                            "content": "Accepts a path to a zip archive (relative to data/), persists a `processing` log entry and runs parsing in background. Use GET /api/v1/log/{log_id} to poll status.",
                                             "type": "text/plain"
                                         },
                                         "url": {
@@ -574,8 +574,8 @@
                                     },
                                     "response": [
                                         {
-                                            "id": "8a3acd22-620c-48ae-9143-e331916611f8",
-                                            "name": "log_id of the successfully parsed log",
+                                            "id": "4444aad0-bf55-4aea-88c6-2898fa9180c5",
+                                            "name": "log_id; parsing is queued",
                                             "originalRequest": {
                                                 "url": {
                                                     "path": [
@@ -611,21 +611,21 @@
                                                     }
                                                 }
                                             },
-                                            "status": "Created",
-                                            "code": 201,
+                                            "status": "Accepted",
+                                            "code": 202,
                                             "header": [
                                                 {
                                                     "key": "Content-Type",
                                                     "value": "application/json"
                                                 }
                                             ],
-                                            "body": "{\n  \"error\": \"<string>\",\n  \"log_id\": \"<string>\"\n}",
+                                            "body": "{\n  \"log_id\": \"<string>\"\n}",
                                             "cookie": [],
                                             "_postman_previewlanguage": "json"
                                         },
                                         {
-                                            "id": "3a8e1079-31a3-4c64-a8b1-ee05079f733c",
-                                            "name": "validation error (bad body, empty path, path outside data/)",
+                                            "id": "05b87b82-4949-4717-8f6b-0e8639c0b177",
+                                            "name": "validation error (bad body, empty path, path outside data/, file not found, not a zip archive)",
                                             "originalRequest": {
                                                 "url": {
                                                     "path": [
@@ -669,13 +669,13 @@
                                                     "value": "application/json"
                                                 }
                                             ],
-                                            "body": "{\n  \"error\": \"<string>\",\n  \"log_id\": \"<string>\"\n}",
+                                            "body": "{\n  \"error\": \"<string>\"\n}",
                                             "cookie": [],
                                             "_postman_previewlanguage": "json"
                                         },
                                         {
-                                            "id": "4ef84d59-f25d-4ae3-b623-35e24379b391",
-                                            "name": "internal error",
+                                            "id": "71f443b9-d85b-4d14-9527-e98db6d8382e",
+                                            "name": "internal error (failed to persist processing log)",
                                             "originalRequest": {
                                                 "url": {
                                                     "path": [
@@ -740,7 +740,7 @@
                                     "description": "",
                                     "item": [
                                         {
-                                            "id": "464963e6-783e-4e64-9b0a-70cd2fecc083",
+                                            "id": "4875f10d-f2f3-4e2f-a192-326995e7daf9",
                                             "name": "List node ports",
                                             "request": {
                                                 "name": "List node ports",
@@ -784,7 +784,7 @@
                                             },
                                             "response": [
                                                 {
-                                                    "id": "5ee98ab8-9f5d-4f89-bcff-65881f5f0d36",
+                                                    "id": "b829ed1d-f4d8-4bef-ad3c-b4d1b35306c3",
                                                     "name": "OK",
                                                     "originalRequest": {
                                                         "url": {
@@ -828,12 +828,12 @@
                                                             "value": "application/json"
                                                         }
                                                     ],
-                                                    "body": "{\n  \"ports\": [\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    },\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    }\n  ]\n}",
+                                                    "body": "{\n  \"ports\": [\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\",\n        \"key_2\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    },\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    }\n  ]\n}",
                                                     "cookie": [],
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "35adb06a-be66-4553-8319-5cd75802bb5a",
+                                                    "id": "ef3f26ca-d0a3-44ff-b8ea-65ae664c0994",
                                                     "name": "Bad Request",
                                                     "originalRequest": {
                                                         "url": {
@@ -882,7 +882,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "8da42a2b-e6ff-4b66-bbb6-48a41ba67f4b",
+                                                    "id": "212ff85c-facf-42c4-abc3-411eb3d50e43",
                                                     "name": "Not Found",
                                                     "originalRequest": {
                                                         "url": {
@@ -931,7 +931,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "0780ea2e-7d0e-4dd8-b085-74adc2c37b9a",
+                                                    "id": "70d96913-a624-46dc-af19-1d4293e90536",
                                                     "name": "Internal Server Error",
                                                     "originalRequest": {
                                                         "url": {
@@ -998,12 +998,12 @@
                                     "description": "",
                                     "item": [
                                         {
-                                            "id": "40115a30-86ce-4e95-ab0f-3e88fc8441f2",
+                                            "id": "922d27a5-1347-4e91-b143-3d7083e7dde3",
                                             "name": "Get topology",
                                             "request": {
                                                 "name": "Get topology",
                                                 "description": {
-                                                    "content": "Returns nodes, ports and connections (edges) for the given log.",
+                                                    "content": "Returns nodes and ports for the given log.",
                                                     "type": "text/plain"
                                                 },
                                                 "url": {
@@ -1042,7 +1042,7 @@
                                             },
                                             "response": [
                                                 {
-                                                    "id": "6ffe160f-baa1-4ddf-9be3-ea2a3d315164",
+                                                    "id": "0b1c61ec-18a7-4b32-8968-091b68d63a0b",
                                                     "name": "OK",
                                                     "originalRequest": {
                                                         "url": {
@@ -1086,12 +1086,12 @@
                                                             "value": "application/json"
                                                         }
                                                     ],
-                                                    "body": "{\n  \"edges\": [\n    {\n      \"port_a_id\": \"<integer>\",\n      \"port_b_id\": \"<integer>\"\n    },\n    {\n      \"port_a_id\": \"<integer>\",\n      \"port_b_id\": \"<integer>\"\n    }\n  ],\n  \"nodes\": [\n    {\n      \"desc\": \"<string>\",\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"log_id\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"desc\": \"<string>\",\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"log_id\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ],\n  \"ports\": [\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    },\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\",\n        \"key_2\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    }\n  ]\n}",
+                                                    "body": "{\n  \"nodes\": [\n    {\n      \"desc\": \"<string>\",\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"log_id\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"desc\": \"<string>\",\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"log_id\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ],\n  \"ports\": [\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    },\n    {\n      \"guid\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"lid\": \"<integer>\",\n      \"link_speed_actv\": \"<integer>\",\n      \"link_width_actv\": \"<integer>\",\n      \"node_id\": \"<integer>\",\n      \"phy_state\": \"<integer>\",\n      \"port_num\": \"<integer>\",\n      \"raw\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\"\n      },\n      \"state\": \"<integer>\"\n    }\n  ]\n}",
                                                     "cookie": [],
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "f5e27d83-b961-4254-9fd4-9a14b33bd13b",
+                                                    "id": "434e8170-179f-4e5d-aa78-5644ceeb738b",
                                                     "name": "Bad Request",
                                                     "originalRequest": {
                                                         "url": {
@@ -1140,7 +1140,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "b0de1d54-bc3e-4e82-b917-f2ca1a5b484a",
+                                                    "id": "30920118-c15c-4ab9-bbf6-30a49c8d87fd",
                                                     "name": "Not Found",
                                                     "originalRequest": {
                                                         "url": {
@@ -1189,7 +1189,7 @@
                                                     "_postman_previewlanguage": "json"
                                                 },
                                                 {
-                                                    "id": "3cba204e-ca6c-461e-a6cb-b8048d703065",
+                                                    "id": "826693da-728e-4097-865f-73a2355f1517",
                                                     "name": "Internal Server Error",
                                                     "originalRequest": {
                                                         "url": {
@@ -1256,7 +1256,7 @@
             "description": "",
             "item": [
                 {
-                    "id": "69b55275-a658-49c7-8c97-14ffc1ac4556",
+                    "id": "218d1eea-526b-459f-9e53-1a6eacc52e18",
                     "name": "Health check",
                     "request": {
                         "name": "Health check",
@@ -1286,7 +1286,7 @@
                     },
                     "response": [
                         {
-                            "id": "c806a99e-dfe5-4961-ad2d-06ca3978aafb",
+                            "id": "57412264-55e7-4fd4-8b97-8608c1b4d1f3",
                             "name": "OK",
                             "originalRequest": {
                                 "url": {
@@ -1321,7 +1321,7 @@
                             "_postman_previewlanguage": "json"
                         },
                         {
-                            "id": "c9c49dca-c10c-44e5-9fd6-689a9e709ef9",
+                            "id": "39fa1f7d-663f-4743-bf05-25aba520b8ba",
                             "name": "Service Unavailable",
                             "originalRequest": {
                                 "url": {
@@ -1372,7 +1372,7 @@
         }
     ],
     "info": {
-        "_postman_id": "dc3f9fd6-f74b-417b-8520-127e09ce4a73",
+        "_postman_id": "03a5edd8-a8ae-48df-8213-bf1c96687cbd",
         "name": "Log Parser API",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "description": {

@@ -122,3 +122,17 @@ func (mr *MocklogParserMockRecorder) Parse(path any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MocklogParser)(nil).Parse), path)
 }
+
+// Preflight mocks base method.
+func (m *MocklogParser) Preflight(path string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Preflight", path)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Preflight indicates an expected call of Preflight.
+func (mr *MocklogParserMockRecorder) Preflight(path any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Preflight", reflect.TypeOf((*MocklogParser)(nil).Preflight), path)
+}
