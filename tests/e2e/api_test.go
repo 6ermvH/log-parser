@@ -166,7 +166,7 @@ type portsResp struct {
 	} `json:"ports"`
 }
 
-func postParse(t *testing.T, path string) parseResp {
+func doParse(t *testing.T, path string) *http.Response {
 	t.Helper()
 
 	body, _ := json.Marshal(map[string]string{"path": path})
@@ -180,6 +180,13 @@ func postParse(t *testing.T, path string) parseResp {
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 
+	return resp
+}
+
+func postParse(t *testing.T, path string) parseResp {
+	t.Helper()
+
+	resp := doParse(t, path)
 	defer resp.Body.Close()
 
 	var out parseResp
@@ -291,16 +298,7 @@ func TestE2E_ParseValidationErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			body, _ := json.Marshal(map[string]string{"path": tc.path})
-
-			req, err := http.NewRequestWithContext(t.Context(),
-				http.MethodPost, testServer.URL+"/api/v1/parse", bytes.NewReader(body))
-			require.NoError(t, err)
-
-			req.Header.Set("Content-Type", "application/json")
-
-			resp, err := http.DefaultClient.Do(req)
-			require.NoError(t, err)
+			resp := doParse(t, tc.path)
 			defer resp.Body.Close()
 
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -309,17 +307,7 @@ func TestE2E_ParseValidationErrors(t *testing.T) {
 }
 
 func TestE2E_ParseMissingFile(t *testing.T) {
-	body, _ := json.Marshal(map[string]string{"path": "missing.zip"})
-
-	req, err := http.NewRequestWithContext(t.Context(),
-		http.MethodPost, testServer.URL+"/api/v1/parse", bytes.NewReader(body))
-	require.NoError(t, err)
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-
+	resp := doParse(t, "missing.zip")
 	defer resp.Body.Close()
 
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)

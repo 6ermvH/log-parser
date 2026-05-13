@@ -30,21 +30,32 @@ func decodeJSON(t *testing.T, body io.Reader, dst any) {
 	require.NoError(t, json.NewDecoder(body).Decode(dst))
 }
 
-func TestParseHandler_Accepted(t *testing.T) {
-	t.Parallel()
+func runParseHandler(t *testing.T, body string, setup func(*mocks.MockparseSubmitter)) *httptest.ResponseRecorder {
+	t.Helper()
 
 	ctrl := gomock.NewController(t)
 	svc := mocks.NewMockparseSubmitter(ctrl)
 
-	logID := uuid.New()
-	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(logID, nil)
+	if setup != nil {
+		setup(svc)
+	}
 
 	h := parseHandler(svc, discardLogger(), t.TempDir())
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":"log.zip"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	h(w, req)
+
+	return w
+}
+
+func TestParseHandler_Accepted(t *testing.T) {
+	t.Parallel()
+
+	logID := uuid.New()
+	w := runParseHandler(t, `{"path":"log.zip"}`, func(s *mocks.MockparseSubmitter) {
+		s.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(logID, nil)
+	})
 
 	require.Equal(t, http.StatusAccepted, w.Code)
 
@@ -57,17 +68,9 @@ func TestParseHandler_Accepted(t *testing.T) {
 func TestParseHandler_SubmitError(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseSubmitter(ctrl)
-
-	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, errors.New("db down"))
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":"log.zip"}`))
-	w := httptest.NewRecorder()
-	h(w, req)
+	w := runParseHandler(t, `{"path":"log.zip"}`, func(s *mocks.MockparseSubmitter) {
+		s.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, errors.New("db down"))
+	})
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
@@ -75,49 +78,23 @@ func TestParseHandler_SubmitError(t *testing.T) {
 func TestParseHandler_InvalidJSON(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseSubmitter(ctrl)
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":`))
-	w := httptest.NewRecorder()
-	h(w, req)
-
+	w := runParseHandler(t, `{"path":`, nil)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestParseHandler_EmptyPath(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseSubmitter(ctrl)
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":""}`))
-	w := httptest.NewRecorder()
-	h(w, req)
-
+	w := runParseHandler(t, `{"path":""}`, nil)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestParseHandler_InputNotFound(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseSubmitter(ctrl)
-
-	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, parser.ErrInputNotFound)
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":"missing.zip"}`))
-	w := httptest.NewRecorder()
-	h(w, req)
+	w := runParseHandler(t, `{"path":"missing.zip"}`, func(s *mocks.MockparseSubmitter) {
+		s.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, parser.ErrInputNotFound)
+	})
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -130,17 +107,9 @@ func TestParseHandler_InputNotFound(t *testing.T) {
 func TestParseHandler_InputNotZip(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseSubmitter(ctrl)
-
-	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, parser.ErrInputNotZip)
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":"not_a_zip.txt"}`))
-	w := httptest.NewRecorder()
-	h(w, req)
+	w := runParseHandler(t, `{"path":"not_a_zip.txt"}`, func(s *mocks.MockparseSubmitter) {
+		s.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, parser.ErrInputNotZip)
+	})
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -153,15 +122,6 @@ func TestParseHandler_InputNotZip(t *testing.T) {
 func TestParseHandler_PathOutsideDataDir(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	svc := mocks.NewMockparseSubmitter(ctrl)
-
-	h := parseHandler(svc, discardLogger(), t.TempDir())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
-		bytes.NewBufferString(`{"path":"../etc/passwd"}`))
-	w := httptest.NewRecorder()
-	h(w, req)
-
+	w := runParseHandler(t, `{"path":"../etc/passwd"}`, nil)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
