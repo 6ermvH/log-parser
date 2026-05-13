@@ -16,6 +16,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/6ermvH/log-parser/internal/domain"
+	"github.com/6ermvH/log-parser/internal/parser"
 	"github.com/6ermvH/log-parser/internal/service"
 	"github.com/6ermvH/log-parser/internal/service/mocks"
 )
@@ -44,6 +45,7 @@ func TestParseService_Submit_Success(t *testing.T) {
 
 	dlog := domain.Log{Nodes: []domain.Node{{GUID: "0xa", Type: domain.NodeTypeHost}}}
 
+	parser.EXPECT().Preflight("/data/log.zip").Return(nil)
 	repo.EXPECT().InsertProcessingLog(gomock.Any(), gomock.Any()).Return(nil)
 	parser.EXPECT().Parse("/data/log.zip").Return(dlog, nil)
 	repo.EXPECT().SaveDomainLog(gomock.Any(), gomock.Any(), dlog).Return(nil)
@@ -66,6 +68,7 @@ func TestParseService_Submit_ParseError(t *testing.T) {
 
 	parseErr := errors.New("broken zip")
 
+	parser.EXPECT().Preflight(gomock.Any()).Return(nil)
 	repo.EXPECT().InsertProcessingLog(gomock.Any(), gomock.Any()).Return(nil)
 	parser.EXPECT().Parse(gomock.Any()).Return(domain.Log{}, parseErr)
 	repo.EXPECT().MarkLogFailed(gomock.Any(), gomock.Any(), "broken zip").Return(nil)
@@ -88,6 +91,7 @@ func TestParseService_Submit_SaveError(t *testing.T) {
 
 	saveErr := errors.New("save failed")
 
+	parser.EXPECT().Preflight(gomock.Any()).Return(nil)
 	repo.EXPECT().InsertProcessingLog(gomock.Any(), gomock.Any()).Return(nil)
 	parser.EXPECT().Parse(gomock.Any()).Return(domain.Log{}, nil)
 	repo.EXPECT().SaveDomainLog(gomock.Any(), gomock.Any(), gomock.Any()).Return(saveErr)
@@ -109,6 +113,7 @@ func TestParseService_Submit_InsertError(t *testing.T) {
 	parser := mocks.NewMocklogParser(ctrl)
 
 	insertErr := errors.New("db down")
+	parser.EXPECT().Preflight(gomock.Any()).Return(nil)
 	repo.EXPECT().InsertProcessingLog(gomock.Any(), gomock.Any()).Return(insertErr)
 
 	svc := service.NewParseService(parser, repo, discardLogger())
@@ -116,6 +121,23 @@ func TestParseService_Submit_InsertError(t *testing.T) {
 	id, err := svc.Submit(context.Background(), "/data/log.zip")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, insertErr)
+	assert.Equal(t, uuid.Nil, id)
+}
+
+func TestParseService_Submit_PreflightError(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	repo := mocks.NewMockparseRepo(ctrl)
+	parserMock := mocks.NewMocklogParser(ctrl)
+
+	parserMock.EXPECT().Preflight("/missing.zip").Return(parser.ErrInputNotFound)
+
+	svc := service.NewParseService(parserMock, repo, discardLogger())
+
+	id, err := svc.Submit(context.Background(), "/missing.zip")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, parser.ErrInputNotFound)
 	assert.Equal(t, uuid.Nil, id)
 }
 
@@ -127,6 +149,7 @@ func TestParseService_Submit_MarkFailedErrorIsSwallowed(t *testing.T) {
 	parser := mocks.NewMocklogParser(ctrl)
 
 	parseErr := errors.New("broken")
+	parser.EXPECT().Preflight(gomock.Any()).Return(nil)
 	repo.EXPECT().InsertProcessingLog(gomock.Any(), gomock.Any()).Return(nil)
 	parser.EXPECT().Parse(gomock.Any()).Return(domain.Log{}, parseErr)
 	repo.EXPECT().MarkLogFailed(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("mark failed"))

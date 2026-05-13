@@ -309,12 +309,27 @@ func TestE2E_ParseValidationErrors(t *testing.T) {
 }
 
 func TestE2E_ParseMissingFile(t *testing.T) {
-	parsed := postParse(t, "missing.zip")
-	require.NotEmpty(t, parsed.LogID)
+	body, _ := json.Marshal(map[string]string{"path": "missing.zip"})
 
-	meta := waitLog(t, parsed.LogID)
-	assert.Equal(t, statusFailed, meta.Status)
-	assert.Contains(t, meta.Error, "open zip")
+	req, err := http.NewRequestWithContext(t.Context(),
+		http.MethodPost, testServer.URL+"/api/v1/parse", bytes.NewReader(body))
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var errResp struct {
+		Error string `json:"error"`
+	}
+
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&errResp))
+	assert.Equal(t, "input file not found", errResp.Error)
 }
 
 func TestE2E_LogMismatchField(t *testing.T) {

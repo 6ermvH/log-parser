@@ -12,6 +12,7 @@ sequenceDiagram
     participant C as Client
     participant H as Handler
     participant P as ParserService
+    participant Pf as Parser.Preflight
     participant R as Repository
     participant DB as PostgreSQL
     participant G as background goroutine
@@ -19,14 +20,23 @@ sequenceDiagram
     C->>H: POST /api/v1/parse {path}
     H->>P: Submit(ctx, path)
 
-    P->>R: InsertProcessingLog(uuid)
-    R->>DB: INSERT logs (status processing) — commit
-    DB-->>R: ok
-    R-->>P: ok
+    P->>Pf: Preflight(path)
+    Note over Pf: os.Stat + zip.OpenReader<br/>проверка «файл есть и это zip»
+    Pf-->>P: nil or ErrInputNotFound / ErrInputNotZip
 
-    P->>G: spawn(process)
-    P-->>H: log_id
-    H-->>C: 202 Accepted {log_id}
+    alt preflight failed
+        P-->>H: sentinel error
+        H-->>C: 400 Bad Request {error}
+    else preflight ok
+        P->>R: InsertProcessingLog(uuid)
+        R->>DB: INSERT logs (status processing) — commit
+        DB-->>R: ok
+        R-->>P: ok
+
+        P->>G: spawn(process)
+        P-->>H: log_id
+        H-->>C: 202 Accepted {log_id}
+    end
 ```
 
 ### Фоновая горутина

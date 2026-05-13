@@ -18,6 +18,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/6ermvH/log-parser/internal/api/v1/http/mocks"
+	"github.com/6ermvH/log-parser/internal/parser"
 )
 
 func discardLogger() *slog.Logger {
@@ -101,6 +102,52 @@ func TestParseHandler_EmptyPath(t *testing.T) {
 	h(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestParseHandler_InputNotFound(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	svc := mocks.NewMockparseSubmitter(ctrl)
+
+	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, parser.ErrInputNotFound)
+
+	h := parseHandler(svc, discardLogger(), t.TempDir())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
+		bytes.NewBufferString(`{"path":"missing.zip"}`))
+	w := httptest.NewRecorder()
+	h(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+
+	var resp errorResponse
+
+	decodeJSON(t, w.Body, &resp)
+	assert.Equal(t, "input file not found", resp.Error)
+}
+
+func TestParseHandler_InputNotZip(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	svc := mocks.NewMockparseSubmitter(ctrl)
+
+	svc.EXPECT().Submit(gomock.Any(), gomock.Any()).Return(uuid.Nil, parser.ErrInputNotZip)
+
+	h := parseHandler(svc, discardLogger(), t.TempDir())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/parse",
+		bytes.NewBufferString(`{"path":"not_a_zip.txt"}`))
+	w := httptest.NewRecorder()
+	h(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+
+	var resp errorResponse
+
+	decodeJSON(t, w.Body, &resp)
+	assert.Equal(t, "input is not a valid zip archive", resp.Error)
 }
 
 func TestParseHandler_PathOutsideDataDir(t *testing.T) {

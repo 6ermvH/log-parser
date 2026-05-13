@@ -3,12 +3,15 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/6ermvH/log-parser/internal/parser"
 )
 
 type parseSubmitter interface {
@@ -32,7 +35,7 @@ type parseResponse struct {
 //	@Produce		json
 //	@Param			request	body		parseRequest	true	"Path to log archive (relative to data/)"
 //	@Success		202		{object}	parseResponse	"log_id; parsing is queued"
-//	@Failure		400		{object}	errorResponse	"validation error (bad body, empty path, path outside data/)"
+//	@Failure		400		{object}	errorResponse	"validation error (bad body, empty path, path outside data/, file not found, not a zip archive)"
 //	@Failure		500		{object}	errorResponse	"internal error (failed to persist processing log)"
 //	@Router			/api/v1/parse [post]
 func parseHandler(svc parseSubmitter, log *slog.Logger, dataDir string) http.HandlerFunc {
@@ -60,8 +63,15 @@ func parseHandler(svc parseSubmitter, log *slog.Logger, dataDir string) http.Han
 
 		logID, err := svc.Submit(r.Context(), resolvedPath)
 		if err != nil {
-			log.Error("submit parse", "err", err)
-			writeError(w, log, http.StatusInternalServerError, "internal server error")
+			switch {
+			case errors.Is(err, parser.ErrInputNotFound):
+				writeError(w, log, http.StatusBadRequest, "input file not found")
+			case errors.Is(err, parser.ErrInputNotZip):
+				writeError(w, log, http.StatusBadRequest, "input is not a valid zip archive")
+			default:
+				log.Error("submit parse", "err", err)
+				writeError(w, log, http.StatusInternalServerError, "internal server error")
+			}
 
 			return
 		}

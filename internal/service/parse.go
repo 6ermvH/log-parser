@@ -19,6 +19,7 @@ type parseRepo interface {
 }
 
 type logParser interface {
+	Preflight(path string) error
 	Parse(path string) (domain.Log, error)
 }
 
@@ -34,6 +35,10 @@ func NewParseService(p logParser, r parseRepo, log *slog.Logger) *ParseService {
 }
 
 func (s *ParseService) Submit(ctx context.Context, path string) (uuid.UUID, error) {
+	if pErr := s.parser.Preflight(path); pErr != nil {
+		return uuid.Nil, pErr
+	}
+
 	id, err := uuid.NewV7()
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("generate uuid: %w", err)
